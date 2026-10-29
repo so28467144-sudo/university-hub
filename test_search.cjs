@@ -1,0 +1,10 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync(__dirname+'/app.js','utf8');
+new vm.Script(source);
+const helpers=source.slice(source.indexOf('function normalizeSearch('),source.indexOf('const state='));
+const context=vm.createContext({});vm.runInContext(helpers,context);
+const article={school:'한국기술교육대학교',school_names:['한국기술교육대학교'],school_aliases:['한기대','koreatech'],title:'인재 양성 연구 성과'};
+for(const query of ['한국기술교육대학교','한국 기술교육대학교','한기대','KOREATECH','한기대 연구'])assert.equal(context.matchesSearch(article,query),true,query);
+assert.equal(context.matchesSearch(article,'숭실대'),false);
+assert.equal(context.matchesSearch(article,''),true);
+console.log('PASS: Full names, abbreviations, spacing, case, multiword search and app syntax.');
