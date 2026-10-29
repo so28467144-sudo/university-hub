@@ -162,25 +162,201 @@ $('regionPanel').addEventListener('keydown',e=>{if(e.key==='Escape'){setRegionPa
 $('closeDetail').onclick=()=>$('detail').close();
 $('detail').addEventListener('click',e=>{if(e.target===$('detail')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
 render();
-$('exportExcel').onclick=async()=>{
- const ids=exportRows.map(item=>item.id);
- if(exporting||!ids.length)return;
- exporting=true;render();clearExportNotice();
- try{
- const response=await fetch('/export.xlsx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
- if(!response.ok)throw new Error(response.status===409?'기사 목록이 갱신되었습니다. 새로고침 후 다시 다운로드해 주세요.':'엑셀 다운로드에 실패했습니다. 서버 연결을 확인해 주세요.');
- const url=URL.createObjectURL(await response.blob());const link=document.createElement('a');
- link.href=url;link.download=`대학기사_${koreanDay(new Date())}.xlsx`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
- showExportNotice(`선택한 조건의 기사 ${ids.length}건을 엑셀로 다운로드했습니다. ‘기사 URL’을 클릭하면 기사를 볼 수 있습니다.`);
- }catch(error){showExportNotice(error.message);}
- finally{exporting=false;render();}
-};
-// 페이지 로딩 시 뉴스를 가져오고, 이후 주기적으로 갱신합니다.
-async function loadNews(){
- try{const response=await fetch('./news.json',{cache:'no-store'});if(!response.ok)throw new Error();
- const data=await response.json();news=data.news;rssStatus=data.status;render();}
- catch{$('rssStatus').textContent='뉴스 데이터를 불러오지 못했습니다. 기존 목록은 유지됩니다.';}
+
+
+
+// GitHub Pages에서 엑셀 파일을 직접 생성합니다.
+let xlsxLoader;
+
+function loadXlsxLibrary() {
+  if (window.XLSX) {
+    return Promise.resolve(window.XLSX);
+  }
+
+  if (!xlsxLoader) {
+    xlsxLoader = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+
+      script.src =
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+
+      script.onload = () => {
+        if (window.XLSX) {
+          resolve(window.XLSX);
+        } else {
+          reject(
+            new Error('엑셀 라이브러리를 불러오지 못했습니다.')
+          );
+        }
+      };
+
+      script.onerror = () => {
+        reject(
+          new Error('엑셀 라이브러리 연결에 실패했습니다.')
+        );
+      };
+
+      document.head.append(script);
+    }).catch(error => {
+      xlsxLoader = null;
+      throw error;
+    });
+  }
+
+  return xlsxLoader;
 }
 
+// 엑셀 다운로드 버튼
+$('exportExcel').onclick = async () => {
+  if (exporting || !exportRows.length) {
+    return;
+  }
+
+  const rows = [...exportRows];
+
+  exporting = true;
+  render();
+  clearExportNotice();
+
+  try {
+    const XLSX = await loadXlsxLibrary();
+
+    // 엑셀 열 이름
+    const headers = [
+      '번호',
+      '기사 제목',
+      '대학명',
+      '지역',
+      '시·군·구',
+      '카테고리',
+      '언론사·출처',
+      '게시일 (한국 시간)',
+      '기사 요약',
+      '기사 URL'
+    ];
+
+    // 현재 화면의 필터 조건에 해당하는 기사
+    const values = rows.map((item, index) => {
+      const region =
+        Array.isArray(item.regions) && item.regions.length
+          ? item.regions.join(', ')
+          : item.region || '지역 미분류';
+
+      return [
+        index + 1,
+        item.title || '',
+        item.school || '',
+        region,
+        item.city || '',
+        item.category || '',
+        item.source || '',
+        item.date ? dateLabel(item.date) : '',
+        item.body || '',
+        item.original_url || item.url || ''
+      ];
+    });
+
+    // 엑셀 시트 생성
+    const sheet = XLSX.utils.aoa_to_sheet([
+      headers,
+      ...values
+    ]);
+
+    // 열 너비
+    sheet['!cols'] = [
+      { wch: 8 },
+      { wch: 55 },
+      { wch: 25 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 75 },
+      { wch: 65 }
+    ];
+
+    // 엑셀 자동 필터
+    sheet['!autofilter'] = {
+      ref: `A1:J${values.length + 1}`
+    };
+
+    // 기사 URL을 클릭 가능한 하이퍼링크로 설정
+    for (let i = 0; i < values.length; i++) {
+      const articleUrl = values[i][9];
+
+      if (/^https?:\/\//i.test(articleUrl)) {
+        const cell = sheet[`J${i + 2}`];
+
+        if (cell) {
+          cell.l = {
+            Target: articleUrl,
+            Tooltip: '기사 원문 열기'
+          };
+        }
+      }
+    }
+
+    // 엑셀 파일 생성
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      sheet,
+      '대학 기사'
+    );
+
+    // 다운로드 실행
+    const filename =
+      `대학기사_${koreanDay(new Date())}.xlsx`;
+
+    XLSX.writeFile(workbook, filename);
+
+    showExportNotice(
+      `선택한 조건의 기사 ${rows.length}건을 엑셀로 다운로드했습니다.`
+    );
+
+  } catch (error) {
+    showExportNotice(
+      `엑셀 다운로드 실패: ${error.message}`
+    );
+
+  } finally {
+    exporting = false;
+    render();
+  }
+};
+
+// GitHub Pages에서 news.json 파일을 읽어옵니다.
+async function loadNews() {
+  try {
+    const response = await fetch('./news.json', {
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error('뉴스 데이터를 불러오지 못했습니다.');
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data.news)) {
+      throw new Error('뉴스 데이터 형식이 올바르지 않습니다.');
+    }
+
+    news = data.news;
+    rssStatus = data.status || rssStatus;
+
+    render();
+
+  } catch (error) {
+    $('rssStatus').textContent =
+      '뉴스 데이터를 불러오지 못했습니다. 기존 목록은 유지됩니다.';
+  }
+}
+
+// 최초 실행
 loadNews();
+
+// 60초마다 최신 뉴스 확인
 setInterval(loadNews, 60000);
