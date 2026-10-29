@@ -5,6 +5,27 @@ from rss_collector import Collector
 
 root = Path(__file__).resolve().parent
 
+# 이전에 저장된 뉴스 데이터를 RSS 캐시로 복원
+news_path = root / "news.json"
+cache_path = root / ".rss-cache.json"
+
+if news_path.exists():
+    previous = json.loads(news_path.read_text(encoding="utf-8"))
+
+    if isinstance(previous.get("news"), list):
+        cache_path.write_text(
+            json.dumps(
+                {
+                    "news": previous["news"],
+                    "raw_news": previous["news"],
+                    "lastSuccess": previous.get("status", {}).get("lastSuccess"),
+                    "search_cursor": previous.get("search_cursor", 0),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
 collector = Collector()
 collector.refresh()
 
