@@ -175,9 +175,12 @@ $('exportExcel').onclick=async()=>{
  }catch(error){showExportNotice(error.message);}
  finally{exporting=false;render();}
 };
-// 페이지는 가볍게 상태를 확인하고, 외부 RSS 요청은 서버가 30분마다 수행합니다.
-setInterval(async()=>{
- try{const response=await fetch('/news.json',{cache:'no-store'});if(!response.ok)throw new Error();
+// 페이지 로딩 시 뉴스를 가져오고, 이후 주기적으로 갱신합니다.
+async function loadNews(){
+ try{const response=await fetch('./news.json',{cache:'no-store'});if(!response.ok)throw new Error();
  const data=await response.json();news=data.news;rssStatus=data.status;render();}
- catch{$('rssStatus').textContent='서버에 연결할 수 없습니다. Python 서버가 실행 중인지 확인해 주세요. 기존 목록은 유지됩니다.';}
-},15000);
+ catch{$('rssStatus').textContent='뉴스 데이터를 불러오지 못했습니다. 기존 목록은 유지됩니다.';}
+}
+
+loadNews();
+setInterval(loadNews, 60000);
