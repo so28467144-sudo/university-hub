@@ -18,13 +18,13 @@ INTERVAL = 1800
 MAX_ARTICLES = 5000
 
 from university_regions import match_universities, reclassify_article
-from article_dedup import deduplicate
+from article_dedup import confirmed_deduplicate, public_story_groups, duplicate_review_groups
 from article_links import resolve_newsroom_link
 from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
 from classification_monitor import build_report
 from rss_summaries import select_summary, preserve_summary, USEFUL_KINDS
-from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors
+from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill
 
 
 class PlainText(HTMLParser):
@@ -83,7 +83,7 @@ def classify(title, summary):
 def deduplicate_preserving_links(items):
     """기존 중복 판정은 유지하고 과거 대표에 연결된 ID도 보존합니다."""
     by_id = {item['id']: item for item in items}
-    rows = deduplicate(items)
+    rows = confirmed_deduplicate(items)
     for row in rows:
         ids = set(row.get('duplicate_ids', [row['id']]))
         for item_id in tuple(ids):
@@ -262,6 +262,15 @@ class Collector:
                 if proposed is None:
                     proposed = reclassify_article(dict(raw_item, **raw_item.get('pending_update', {})))
                 review = region_review(old, proposed)
+                if review and verified_unknown_fill(old,proposed):
+                    confirmed=reclassify_article(old)
+                    # Original raw and all non-classification fields stay intact.
+                    fields=('school','school_names','school_aliases','regions','region','city','universities',
+                            'mentioned_regions','classification_status','classification_version',
+                            'background_universities','conflicting_region_evidence','region_review_reasons')
+                    public_by_id[old['id']].update({key:confirmed[key] for key in fields if key in confirmed})
+                    review.update(decision='verified_unknown_region_fill',automatic_change_applied=True,
+                                  published_regions=confirmed['regions'],proposed_evidence=confirmed['universities'])
                 if review: self.region_change_reviews.append(review)
             new_ids = set(merged)-known_ids
             unique_news = deduplicate_preserving_links(raw_news)
@@ -292,6 +301,8 @@ class Collector:
             self.status.update(state='partial' if successes and errors else 'ready' if successes else 'error', errors=errors, sources=statuses)
             self.status['duplicates_removed'] = len(self.raw_news)-len(unique_news)
             self.status['region_change_review_count'] = len(self.region_change_reviews)
+            self.status['public_story_groups'] = public_story_groups(news)
+            self.status['duplicate_review_candidates'] = duplicate_review_groups(news)
             self.status['proposed_region_downgrades_retained'] = sum(bool(r['previous_regions']) and not r['proposed_regions'] for r in self.region_change_reviews)
             self.search_cursor=next_cursor
             self.status.update(search_next_cursor=next_cursor,search_plan_total=len(plan),search_batch_size=len(batch))

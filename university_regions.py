@@ -3,7 +3,7 @@ import re
 import json
 from pathlib import Path
 from campus_addresses import CAMPUS_SELECTORS, SUPPLEMENTS, CAMPUS_IDENTITY_CUES
-from local_education import local_education_context,campus_locality
+from local_education import local_education_context,campus_locality, LOCALITIES
 from university_aliases import generate_aliases
 from collections import defaultdict
 from named_affiliations import extract_facilities
@@ -150,7 +150,19 @@ def campus_options(name):
         if len(parts)>1 and parts[1].endswith(('시','군')):
             label=parts[1][:-1]+'캠퍼스'
             options.append(dict(label=label,aliases=[label],records=[record]))
+    # '여수캠', '메디컬캠', 'WISE캠'은 등록된 캠퍼스의 축약형만 생성합니다.
+    for option in options:
+        option['short_aliases'] = sorted({alias[:-3]+'캠' for alias in option['aliases']
+                                         if alias.endswith('캠퍼스') and len(alias)>3})
     return options
+
+
+def campus_alias_present(option, text):
+    if any(compact(alias) in compact(text) for alias in option['aliases']):
+        return True
+    return any(re.search(r'(?<![가-힣A-Za-z0-9])'+r'\s*'.join(map(re.escape, alias))+
+                         r'(?=$|[^가-힣A-Za-z0-9])', text, re.I)
+               for alias in option.get('short_aliases', []))
 ALIAS_CANDIDATES = defaultdict(set)
 NAME_ALIAS_RECORDS=json.loads((Path(__file__).resolve().parent/'university_name_aliases.json').read_text(encoding='utf-8'))['records']
 for record in NAME_ALIAS_RECORDS:
@@ -198,6 +210,9 @@ def select_alias_name(match,text):
     candidates=ALIAS_CANDIDATES[key]
     tail=text[match.end():]
     before=text[max(0,match.start()-35):match.start()]
+    if key.endswith('대학') and re.search(r'\s+대학$',match.group()) and re.match(r'서|에서|내|들|연합',tail):
+        places={p.removesuffix('시').removesuffix('군') for p in LOCALITIES}|set(PLACE_NAMES)
+        if key[:-2] in places:return None
     if re.search(r'[a-z0-9]$',key) and re.match(r'[a-zA-Z0-9]',tail):return None
     if re.match(r'공원|입구역|역',tail):return None
     if key.endswith('대') and re.match(r'학(?!생|교)',tail):return None
@@ -244,6 +259,7 @@ def resolve_universities(text):
         chosen = [option for option in options if any(
             compact(alias) in compact(nearby) or compact(prefix).endswith(compact(alias)) or compact(match.group()).endswith(compact(alias))
             for alias in option['aliases'])]
+        chosen.extend(option for option in options if option not in chosen and campus_alias_present(option,nearby))
         cue_evidence=[]
         if not chosen:
             for cue in CAMPUS_IDENTITY_CUES:
@@ -254,7 +270,7 @@ def resolve_universities(text):
                     if cue.get('position')=='before':
                         found_cue=re.search(r'(?<![가-힣A-Za-z0-9])'+re.escape(alias)+r'\s*$',prefix,re.I)
                     else:
-                        found_cue=re.match(r'\s*[\[(]?\s*'+re.escape(alias)+r'(?=$|[^가-힣A-Za-z0-9]|캠퍼스)',nearby,re.I)
+                        found_cue=re.match(r'[\s,·:()\[\]‘’\'"-]*'+re.escape(alias)+r'(?=$|[^가-힣A-Za-z0-9]|캠퍼스)',nearby,re.I)
                         if found_cue and cue.get('after_pattern') and not re.match(cue['after_pattern'],nearby[found_cue.end():]):
                             found_cue=None
                         if found_cue and re.match(r'\s*(?:기업|회사|플랫폼|제품|솔루션|프로그램)',nearby[found_cue.end():]):
@@ -268,7 +284,7 @@ def resolve_universities(text):
         entry['cue_evidence'].extend(cue_evidence)
         entry['chosen'].extend(chosen)
         if not chosen:
-            unknown = re.findall(r'([가-힣A-Za-z]{2,16})\s*캠퍼스', nearby)
+            unknown = re.findall(r'([가-힣A-Za-z]{2,16})\s*캠퍼스(?!투어|탐방|견학)', nearby)
             descriptions = {'현장','고령친화','디지털','가상','온라인','스마트','산학협력','미래','미래형','혁신','오픈','개방','행복','필드','풀리','낭만','직무','기간','다소비','새로운','맞아','가을','듣고','팝업','지하','함께','열린','도심','대학','사흘간','이틀간','아이디어로','중장년일자리','에코','eco','ai','RISE','rise','전국'}
             unknown=[label for label in unknown if compact(label) not in {compact(x) for x in descriptions}]
             unknown = [label for label in unknown if label not in descriptions and label not in ('초청해','방문해','찾아','둘러본') and not label.endswith(('형','는','은','한','들의','의','과','와'))]
@@ -365,6 +381,12 @@ def remove_background_affiliations(title, summary):
     """학력/출신 기관을 임용·발표 등 기사의 현재 소속과 구분합니다."""
     summary=normalize_university_text(summary)
     ignored=[]
+    byline=re.match(r'\s*\[[^\]]{0,140}(?:교수|총장|연구원|기자)[^\]]*\]',summary)
+    if byline:
+        for match in PATTERN.finditer(byline.group()):
+            name=select_alias_name(match,byline.group())
+            if name:ignored.append(dict(name=name,reason='기고자·작성자의 소속 대학'))
+        summary=' '*byline.end()+summary[byline.end():]
     sentences=re.split(r'(?<=[.!?。])\s+',summary)
     cleaned=[]
     for sentence in sentences:
@@ -383,6 +405,11 @@ def remove_background_affiliations(title, summary):
                 ignored.append(dict(name=name,reason='인물의 학력·출신 대학'))
                 replacements.append((match.start(),match.end()))
         for start,end in reversed(replacements):sentence=sentence[:start]+' '+sentence[end:]
+        # A former campus vice-president role is biography, not the location of
+        # the current appointment/event (e.g. a university-wide president).
+        historical=list(re.finditer(r'([가-힣A-Za-z]+캠퍼스)\s*(?:부총장|총장|학장|센터장|교수).{0,60}?(?:역임|지냈|거쳤)',sentence))
+        for match in reversed(historical):
+            start,end=match.span(1);sentence=sentence[:start]+' '*(end-start)+sentence[end:]
         cleaned.append(sentence)
     return '\n'.join(cleaned),ignored
 

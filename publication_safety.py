@@ -9,6 +9,17 @@ class PublicationBlocked(RuntimeError):
     pass
 
 
+def verified_unknown_fill(previous, proposed):
+    """Only fill an empty public region from independently reproducible evidence."""
+    if previous.get('regions') != [] or not proposed.get('regions'):return False
+    from university_regions import reclassify_article
+    decision=reclassify_article(previous)
+    schools=decision.get('universities',[])
+    return bool(schools) and set(decision['regions'])==set(proposed['regions']) and not decision.get('conflicting_region_evidence') and all(
+        u.get('addresses') and u.get('source') and u.get('regions') and u.get('region_resolution') in
+        ('verified_campus','unique_verified_location','article_address_intersection') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
+
+
 def merge_raw_record(previous, incoming):
     if not previous: return dict(incoming)
     if previous['id'] != incoming['id']: raise ValueError('Different raw article IDs')
@@ -97,6 +108,6 @@ def publication_errors(previous_news, previous_raw, news, raw, new_ids=()):
                 add(label+'_duplicate_links_lost', [article_id])
             if assess_summary(a.get('body', ''), a.get('title', ''))[0] in USEFUL_KINDS and a.get('body') != b.get('body'):
                 add(label+'_useful_summary_lost', [article_id])
-            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])):
+            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b):
                 add('unapproved_existing_region_change', [article_id])
     return errors

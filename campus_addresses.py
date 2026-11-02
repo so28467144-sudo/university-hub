@@ -18,6 +18,14 @@ CAMPUS_SELECTORS = {
 
 # 대학명에 바로 붙은 고유 표현만 기존 주소 레코드와 연결합니다. 일반 지명 사전이 아닙니다.
 CAMPUS_IDENTITY_CUES = [
+    dict(school='인제대학교',label='김해캠퍼스',aliases=['임상병리학과'],road='인제로 197',
+         source='https://cms.inje.ac.kr/biomls/index.do?date=2026-08-01'),
+    dict(school='인제대학교',label='김해캠퍼스',aliases=['RISE사업본부'],road='인제로 197',
+         source='https://onestop.inje.ac.kr/linc/content/51'),
+    dict(school='인제대학교',label='김해캠퍼스',aliases=['대학일자리플러스센터'],road='인제로 197',
+         source='https://gnwomenwork.or.kr/bri/sub.php?menu=50&sub=sub_10'),
+    dict(school='건양대학교',label='메디컬캠퍼스',aliases=['의공학과','임상병리학과'],road='관저동로 158',
+         source='https://www.konyang.ac.kr/kor/sub03_01_01.do'),
     dict(school='동국대학교',label='WISE캠퍼스',aliases=['WISE','와이즈'],road='동대로 123',
          source='https://wise.dongguk.ac.kr/page/110'),
     dict(school='연세대학교',label='미래캠퍼스',aliases=['미래'],road='연세대길 1',

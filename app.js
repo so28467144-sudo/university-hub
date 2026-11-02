@@ -18,6 +18,25 @@ const inRegion=(n,region)=>{
 const regions = ['전체 지역', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기도', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '해외', '지역 미분류'];
 let saved=new Set();try{const value=JSON.parse(localStorage.getItem('campus-on-saved')||'[]');if(Array.isArray(value))saved=new Set(value.filter(x=>typeof x==='string'));}catch{}
 const isArticleSaved=article=>(article.duplicate_ids||[article.id]).some(id=>saved.has(id));
+function selectPublicRepresentatives(rows,groups=[]){
+ if(!Array.isArray(groups))return rows;
+ const byId=new Map(rows.map(row=>[row.id,row])),hidden=new Set(),claimed=new Set(),replacements=new Map();
+ for(const group of groups){
+  if(!group||typeof group!=='object')continue;
+  const ids=group.article_ids;
+  if(!Array.isArray(ids)||ids.length<2||new Set(ids).size!==ids.length||!ids.includes(group.representative_id)||ids.some(id=>!byId.has(id)||claimed.has(id)))continue;
+  const representative=byId.get(group.representative_id);
+  // Never hide unique searchable/filterable/exported content, even if stale
+  // server metadata incorrectly claims that two articles are duplicates.
+  if(group.version!==4)continue;
+  const visibleKeys=['title','body','school','school_names','school_aliases','regions','region','city','category','source','date','url','original_url'];
+  if(ids.some(id=>visibleKeys.some(key=>JSON.stringify(byId.get(id)[key])!==JSON.stringify(representative[key]))))continue;
+  const aliases=new Set(ids.flatMap(id=>byId.get(id).duplicate_ids||[id]));ids.forEach(id=>aliases.add(id));
+  replacements.set(representative.id,{...representative,duplicate_ids:[...aliases],duplicate_count:aliases.size});
+  ids.forEach(id=>{claimed.add(id);if(id!==representative.id)hidden.add(id);});
+ }
+ return rows.filter(row=>!hidden.has(row.id)).map(row=>replacements.get(row.id)||row);
+}
 function normalizeSearch(value){return String(value||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');}
 function matchesSearch(article,query){
  if(!query.trim())return true;
@@ -344,7 +363,7 @@ async function loadNews() {
       throw new Error('뉴스 데이터 형식이 올바르지 않습니다.');
     }
 
-    news = data.news;
+    news = selectPublicRepresentatives(data.news, data.status?.public_story_groups || []);
     rssStatus = data.status || rssStatus;
 
     render();

@@ -7,6 +7,9 @@ import unicodedata
 from functools import lru_cache
 from university_regions import PATTERN,select_alias_name
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from admission_identity import admission_match, admission_bucket
+from rss_summaries import assess_summary, USEFUL_KINDS
+from named_affiliations import extract_facilities
 
 PLACEHOLDER = '구글 뉴스에서 수집한 기사입니다.'
 STOP = {'운영','개최','발표','추진','진행','전격','본격','성료','대학','대학교','지원','강화','위한','통해'}
@@ -50,6 +53,7 @@ def normalize(title):
     title=unicodedata.normalize('NFKC',title).lower()
     title=re.sub(r'\[[^]]+\]', ' ', title)
     title=re.sub(r'전격\s*|본격\s*','',title)
+    title=re.sub(r'(?<=\d),(?=\d{3}(?:\D|$))','',title)
     return title
 
 
@@ -81,7 +85,7 @@ def canonical_url(item):
 
 def quality(item):
     body=item.get('body','').strip()
-    useful_body=body if body and not body.startswith(PLACEHOLDER) else ''
+    useful_body=body if assess_summary(body,item['title'])[0] in USEFUL_KINDS else ''
     # 실제 RSS 요약의 정보량을 우선하고, 요약이 없으면 제목의 구체성을 비교합니다.
     return (bool(useful_body), len(set(re.findall(r'[가-힣a-zA-Z0-9]{2,}',useful_body))),
             len(useful_body), len(tokens(item)), len(item['title']),
@@ -102,9 +106,35 @@ def article_resource(url):
     return bool(parts.path.strip('/')) and not re.fullmatch(r'/(?:news|newsroom|press|index(?:\.html|\.do)?|news/index\.do)/?',parts.path,re.I)
 
 
+def conflicting_event_numbers(first,second):
+    patterns=(r'(20\d{2})',r'(\d+)회',r'(\d+)기',r'(\d+)일',r'(\d+)명',r'(\d+)건',r'(\d+)만원',r'(\d+)%')
+    a,b=normalize(first['title']),normalize(second['title'])
+    for pattern in patterns:
+        left,right=set(re.findall(pattern,a)),set(re.findall(pattern,b))
+        if left and right and left!=right:return True
+    # A number without a known detail role (LOOK 3, project 2, etc.) is not
+    # discarded as if it were an optional attendance count.
+    def residual(text):
+        text=re.sub(r'\d+\s*[~∼-]\s*\d+일','',text)
+        for pattern in patterns:text=re.sub(pattern,'',text)
+        return set(re.findall(r'\d+',text))
+    return residual(a)!=residual(b)
+
+
+@lru_cache(maxsize=32768)
+def hospital_names(title):
+    rest,records=extract_facilities(title)
+    return frozenset({r['name'] for r in records}|{n.replace('대학교','대') for n in re.findall(r'[가-힣A-Za-z]{2,25}병원',rest)})
+
+
 def same_story(first,second,compatibility_only=False):
+    hospitals_a,hospitals_b=hospital_names(first['title']),hospital_names(second['title'])
+    if hospitals_a and hospitals_b and hospitals_a!=hospitals_b:return False
+    admission=admission_match(first,second)
+    if admission is False:return False
     url=canonical_url(first)
     if url and url==canonical_url(second) and article_resource(url):return True
+    if re.search(r'\[(?:포토|사진|사진뉴스|PHOTO)',first['title']+' '+second['title'],re.I):return False
     if first.get('date') and second.get('date'):
         try:
             if abs((datetime.fromisoformat(first['date'])-datetime.fromisoformat(second['date'])).total_seconds())>72*3600:return False
@@ -127,15 +157,28 @@ def same_story(first,second,compatibility_only=False):
     campus_map=lambda n:{u['name']:set(u.get('campus_names',[])) for u in n.get('universities',[]) if u.get('campus_status') in ('matched','region_only') and u.get('campus_names')}
     campus_a,campus_b=campus_map(first),campus_map(second)
     if any(not campus_a[name].intersection(campus_b[name]) for name in campus_a.keys()&campus_b.keys()):return False
+    if admission is True:
+        # Date, institution and explicit campus protections have already passed.
+        left,right=informative_body(first),informative_body(second)
+        if min(len(left),len(right))>=120 and SequenceMatcher(None,left,right,autojunk=False).ratio()<.35:
+            return False
+        return True
     action=lambda title:{word for word in ('취소','철회','반박','후속','연기','모집','추가모집','수상','협약','결과발표','결과공개','마감') if word in re.sub(r'\s+','',title)}
     if action(first['title'])!=action(second['title']):return False
-    if set(re.findall(r'\d+',first['title']))!=set(re.findall(r'\d+',second['title'])):return False
+    if set(re.findall(r'\d+',normalize(first['title'])))!=set(re.findall(r'\d+',normalize(second['title']))):
+        if not same_event_topic(first,second) or conflicting_event_numbers(first,second):return False
     quoted=lambda title:{re.sub(r'\W','',s) for s in re.findall(r'[‘\'“"]([^’\'”"]{5,80})[’\'”"]',title) if re.search(r'과정|프로그램|포럼|행사|공모전',s)}
     qa,qb=quoted(first['title']),quoted(second['title'])
     if qa and qb and not qa.intersection(qb):return False
     if compatibility_only:return True
     body_a,body_b=informative_body(first),informative_body(second)
+    if min(len(body_a),len(body_b))>=120 and SequenceMatcher(None,body_a,body_b,autojunk=False).ratio()<.35:
+        return False
     if min(len(body_a),len(body_b))>=80 and SequenceMatcher(None,body_a,body_b,autojunk=False).ratio()>=.88:
+        return True
+    construction=r'조성|지구단위계획|특화거리|문화거리|창업.*(?:거리|대학가)'
+    places=lambda title:set(re.findall(r'([가-힣]{2,20}(?:입구역|시장거리))',title))
+    if places(first['title'])&places(second['title']) and all(re.search(construction,n['title']) for n in (first,second)):
         return True
     if first.get('date') and second.get('date') and same_event_topic(first,second):return True
     ta,tb=tokens(first),tokens(second)
@@ -169,6 +212,8 @@ def deduplicate(items):
         if url:terms.add('@url:'+url)
         terms.add('@title:'+normalize(item['title']))
         terms.add('@compact:'+re.sub(r'\W','',title_key(item)))
+        campaign=admission_bucket(item)
+        if campaign:terms.add(campaign)
         terms.update('@event:'+anchor for anchor in event_signature(item)[0])
         body=informative_body(item)
         if len(body)>=80:terms.add('@body:'+body)
@@ -210,12 +255,78 @@ def deduplicate(items):
             if not shared:continue
             groups[i].extend(groups[j]);groups[j]=[];common=shared
         for anchor in common:anchor_index[anchor].add(i)
-    result=[]
+    # Do not publish transitive majority clusters whose members fail pairwise
+    # story checks. Preserve each incompatible original as its own group.
+    checked_groups=[]
     for group in groups:
+        partitions=[]
+        for item in sorted(group,key=quality,reverse=True):
+            target=next((part for part in partitions if all(same_story(item,other) for other in part)),None)
+            if target is None:partitions.append([item])
+            else:target.append(item)
+        checked_groups.extend(partitions)
+    result=[]
+    for group in checked_groups:
         if not group:continue
         representative=max(group,key=quality)
         ids=sorted({n['id'] for n in group})
         result.append(dict(representative,duplicate_ids=ids,duplicate_count=len(ids),
-                           dedup_version=2,
+                           dedup_version=3,
                            selection_basis='RSS 요약의 정보량 → 제목의 구체성 → 원문 링크 여부 순으로 선택'))
     return sorted(result,key=lambda n:n.get('date',''),reverse=True)
+
+
+def automatic_merge_exclusion(item):
+    """Related coverage and multi-story digests must remain individually visible."""
+    return bool(re.search(
+        r'칼럼|축사|인터뷰|후속|사설|기고|논평|사직|사의|압수수색|사과|'
+        r'브리핑|소식\]|교육소식|이모저모|모음|특별기획|外|\b24시\b|'
+        r'참석.*축사|창간|교수의\s*눈', item.get('title',''), re.I))
+
+
+def confirmed_same_story(first,second):
+    """Automatic hiding requires lossless identical published content.
+
+    A matching event/admission identity alone remains a review candidate.
+    Requiring all user-visible/searchable fields and links prevents a hidden
+    article from adding a unique search, region, date or Excel result.
+    """
+    if any(automatic_merge_exclusion(x) for x in (first,second)):return False
+    if min(len(informative_body(first)),len(informative_body(second)))<120:return False
+    fields=('title','body','school','school_names','school_aliases','regions','region',
+            'city','category','source','date','url','original_url')
+    if any(first.get(k)!=second.get(k) for k in fields):return False
+    return bool(canonical_url(first)) and same_story(first,second)
+
+
+def confirmed_deduplicate(items):
+    """Return only proven identical records as representatives; keep other rows."""
+    partitions=[]; buckets=defaultdict(list)
+    for item in items:
+        key=(item.get('title',''),item.get('body',''),canonical_url(item))
+        target=next((group for group in buckets[key]
+                     if all(confirmed_same_story(item,other) for other in group)),None)
+        if target is None:
+            target=[];buckets[key].append(target);partitions.append(target)
+        target.append(item)
+    result=[]
+    for group in partitions:
+        representative=max(group,key=quality)
+        ids=sorted(x['id'] for x in group)
+        result.append(dict(representative,duplicate_ids=ids,duplicate_count=len(ids),dedup_version=4))
+    return sorted(result,key=lambda n:n.get('date',''),reverse=True)
+
+
+def duplicate_review_groups(items):
+    by_id={x['id']:x for x in items}
+    return [dict(representative_id=row['id'],article_ids=row['duplicate_ids'],
+                 decision='candidate_only',reason='event similarity is not identity')
+            for row in deduplicate(items) if row['duplicate_count']>1
+            and not all(confirmed_same_story(by_id[row['id']],by_id[i])
+                        for i in row['duplicate_ids'] if i!=row['id'])]
+
+
+def public_story_groups(items):
+    return [dict(version=4,representative_id=row['id'],article_ids=row['duplicate_ids'],
+                 basis='identical complete visible content and links')
+            for row in confirmed_deduplicate(items) if row['duplicate_count']>1]
