@@ -25,6 +25,18 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(row['regions'],['대전'])
         self.assertNotIn('한국폴리텍대학',row['school_names'])
 
+    def test_short_polytechnic_campus_alias_uses_verified_address(self):
+        row=reclassify_article(dict(title='한국폴리텍 대전캠, 청년 취업 지원 행사',body=''))
+        self.assertEqual(row['regions'],['대전'])
+        self.assertEqual(row['universities'][0]['campus_names'],['대전캠퍼스'])
+        self.assertEqual(row['universities'][0]['campus_status'],'matched')
+        self.assertIn('우암로 352-21',row['universities'][0]['addresses'][0])
+
+    def test_descriptive_eco_campus_does_not_hide_university_location(self):
+        row=reclassify_article(dict(title='삼육대, 차 없는 AI 에코 캠퍼스 비전 공개',body=''))
+        self.assertEqual(row['school_names'],['삼육대학교'])
+        self.assertEqual(row['regions'],['서울'])
+
     def test_policy_slogan_is_not_seoul_university(self):
         row=reclassify_article(dict(title='서울대10개 만들기…한림대·울산대 지방 사립대 네트워크 추진',body=''))
         self.assertNotIn('서울대학교',row['school_names'])
@@ -35,7 +47,8 @@ class FeedTests(unittest.TestCase):
 
     def test_general_campus_words_and_shared_campus(self):
         row=reclassify_article(dict(title='안양대, 축제 개막…사흘간 캠퍼스 대축제',body=''))
-        self.assertIn('경기도',row['regions'])
+        self.assertEqual(row['regions'],[])  # 안양·강화 중 기사에서 특정하지 않았습니다.
+        self.assertIn('경기도',row['universities'][0]['candidate_regions'])
         self.assertNotEqual(row['universities'][0]['campus_status'],'unresolved')
         row=reclassify_article(dict(title='서울대·충남대 한곳에 모인 세종공동캠퍼스',body=''))
         self.assertEqual(row['regions'],['세종'])
@@ -200,7 +213,8 @@ class FeedTests(unittest.TestCase):
 
     def test_general_venue_and_participant_roles(self):
         row=reclassify_article(dict(title='전북대 연구 행사',body='강릉시에서 포럼이 개최된다.'))
-        self.assertEqual(row['regions'],['강원','전북'])
+        self.assertEqual(row['regions'], ['전북'])
+        self.assertTrue(row['conflicting_region_evidence'])
         row=reclassify_article(dict(title='전북대 연구 행사',body='강릉시에서 온 참가자를 대상으로 포럼을 개최했다.'))
         self.assertEqual(row['regions'],['전북'])
 
@@ -210,7 +224,7 @@ class FeedTests(unittest.TestCase):
         second=parse_feed(raw,'새로 추가한 임의 RSS')[0]
         self.assertEqual(first['regions'],['경남'])
         self.assertEqual(first['regions'],second['regions'])
-        self.assertEqual(first['classification_version'],4)
+        self.assertEqual(first['classification_version'],7)
 
     def test_appointment_excludes_alma_mater_location(self):
         row=reclassify_article(dict(title='신형걸 박사, 존스홉킨스 의대 조교수 임용…신경질환 정밀의학 연구 집중',
@@ -256,7 +270,8 @@ class FeedTests(unittest.TestCase):
                              ('국립경국대 고령친화 캠퍼스센터 개소','경북')]:
             self.assertEqual(reclassify_article(dict(title=title,body=''))['regions'],[region],title)
         row=reclassify_article(dict(title='인제대 현장캠퍼스 시민 개방',body=''))
-        self.assertTrue(row['regions'])
+        self.assertEqual(row['regions'],[])  # 일반 표현을 실제 캠퍼스로 고르지 않습니다.
+        self.assertTrue(row['universities'][0]['candidate_regions'])
         self.assertNotEqual(row['universities'][0]['campus_status'],'unresolved')
 
     def test_google_news_preserves_publisher_and_date(self):
@@ -326,7 +341,8 @@ class FeedTests(unittest.TestCase):
 
     def test_actual_offsite_venue_is_retained(self):
         row=reclassify_article(dict(title='전북대 연구 포럼 개최',body='포럼은 서울에서 개최된다.'))
-        self.assertEqual(row['regions'], ['서울','전북'])
+        self.assertEqual(row['regions'], ['전북'])
+        self.assertTrue(row['conflicting_region_evidence'])
         row=reclassify_article(dict(title='전북대 연구 정책 발표',body='서울의 교육 사례도 함께 비교했다.'))
         self.assertEqual(row['regions'], ['전북'])
 
@@ -340,7 +356,8 @@ class FeedTests(unittest.TestCase):
 
     def test_explicit_and_university_regions_combined(self):
         row = reclassify_article(dict(title='경기도, 숭실대와 대학 정책 협약', body=''))
-        self.assertEqual(row['regions'], ['경기도', '서울'])
+        self.assertEqual(row['regions'], ['서울'])
+        self.assertTrue(row['conflicting_region_evidence'])
         row = reclassify_article(dict(title='서울시립대 연구 성과', body=''))
         self.assertEqual(row['mentioned_regions'], [])
 
@@ -370,7 +387,9 @@ class FeedTests(unittest.TestCase):
     def test_campus_and_unqualified_repeat(self):
         self.assertEqual(reclassify_article(dict(title='한양대 ERICA 연구', body='한양대가 발표'))['regions'], ['경기도'])
         self.assertEqual(reclassify_article(dict(title='연세대(미래) 입학 설명회', body=''))['regions'], ['강원'])
-        self.assertEqual(reclassify_article(dict(title='명지대 협약', body=''))['regions'], ['경기도', '서울'])
+        row=reclassify_article(dict(title='명지대 협약', body=''))
+        self.assertEqual(row['regions'], [])
+        self.assertEqual(row['universities'][0]['candidate_regions'], ['경기도','서울'])
 
     def test_campus_addresses_in_same_province_are_distinct(self):
         asan = reclassify_article(dict(title='선문대 아산캠퍼스 행사', body=''))

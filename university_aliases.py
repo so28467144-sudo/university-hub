@@ -8,6 +8,7 @@ SUFFIXES = [
     ('예술대학교','예대'), ('예술대학','예대'),
     ('전문대학교','전문대'), ('전문대학','전문대'),
     ('대학교','대'), ('대학','대'),
+    ('대학교','대학'),
 ]
 
 
@@ -16,8 +17,14 @@ def generate_aliases(name,extra=()):
     if '국립' in name:bases.add(name.replace('국립',''))
     aliases=set(bases)|set(extra)
     for base in bases:
+        if base.endswith('대학교'):
+            aliases.update((base[:-3]+'(대)',base[:-3]+'(대학교)'))
         for ending,short in SUFFIXES:
-            if base.endswith(ending):aliases.add(base[:-len(ending)]+short)
+            if base.endswith(ending):
+                stem=base[:-len(ending)]
+                # '충남 대학정책' 같은 지역 표현을 충남대학교로 바꾸지 않습니다.
+                if short=='대학' and stem in {'서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주'}:continue
+                aliases.add(stem+short)
         if re.fullmatch(r'[가-힣]{2}교육대학교',base):aliases.add(base.replace('교육대학교','교대'))
         # 공통 약칭은 후보로만 등록하며 단일 대학으로 강제 연결하지 않습니다.
         for ending,short in [('교육대학교','교대'),('외국어대학교','외대'),('과학기술대학교','과기대'),('예술대학교','예대')]:

@@ -30,7 +30,10 @@ class UniversityAliasTests(unittest.TestCase):
                   ('GIST','광주'),('지스트','광주'),('DGIST','대구'),('디지스트','대구'),('유니스트','울산')]
         for alias,region in examples:
             row=reclassify_article(dict(title=alias+', 연구 소식',body=''))
-            self.assertIn(region,row['regions'],alias)
+            candidates={r for u in row['universities'] for r in u.get('candidate_regions',u['regions'])}
+            self.assertIn(region,candidates,alias)
+            if len(candidates)==1:self.assertIn(region,row['regions'],alias)
+            else:self.assertEqual(row['regions'],[],alias)
 
     def test_ambiguous_short_alias_not_forced(self):
         self.assertGreater(len(ALIAS_CANDIDATES['외대']),1)

@@ -13,8 +13,19 @@ def inspect_article(item):
     if not regions.issubset(REGIONS):errors.append('invalid_region')
     if item.get('category') not in CATEGORIES:errors.append('invalid_category')
     if not item.get('classification_version'):errors.append('missing_classification_version')
-    expected={r for u in universities for r in u.get('regions',[])}|{p['region'] for p in item.get('mentioned_regions',[])}
+    mentioned=item.get('mentioned_regions',[])
+    university_regions={r for u in universities for r in u.get('regions',[])}
+    if item.get('classification_version',0)>=7 and universities:
+        expected=university_regions|{p['region'] for p in mentioned if p['region']=='해외'}
+        for university in universities:
+            if not set(university.get('regions',[])).issubset(set(university.get('candidate_regions',university.get('regions',[])))):
+                errors.append('university_region_outside_candidates')
+            if university.get('region_resolution')=='campus_unspecified' and university.get('regions'):
+                errors.append('ambiguous_campus_assigned_region')
+    else:
+        expected=university_regions|{p['region'] for p in mentioned}
     if regions!=expected:errors.append('region_evidence_mismatch')
+    if item.get('conflicting_region_evidence'):review.append('other_article_location_requires_review')
     if item.get('date'):
         try:
             if datetime.fromisoformat(item['date']).tzinfo is None:errors.append('date_without_timezone')

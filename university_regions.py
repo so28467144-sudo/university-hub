@@ -2,12 +2,13 @@
 import re
 import json
 from pathlib import Path
-from campus_addresses import CAMPUS_SELECTORS, SUPPLEMENTS
+from campus_addresses import CAMPUS_SELECTORS, SUPPLEMENTS, CAMPUS_IDENTITY_CUES
 from local_education import local_education_context,campus_locality
 from university_aliases import generate_aliases
 from collections import defaultdict
 from named_affiliations import extract_facilities
 from article_categories import classify_category
+import unicodedata
 
 # 복수 지역은 캠퍼스가 특정되지 않았을 때의 후보 지역입니다.
 GROUPS = {
@@ -50,7 +51,7 @@ EXTRA_ALIASES = {
     '대구경북과학기술원': ['DGIST','디지스트'],
     '포항공과대학교': ['포스텍', 'POSTECH', '포항공대'],
     '한국에너지공과대학교': ['한국에너지공대', 'KENTECH'],
-    '차의과학대학교': ['차의과학대', '차의과대학', '차 의과학대학교', '차 의과학대'],
+    '차의과학대학교': ['차의과학대', '차의과대학', '차 의과학대학교', '차 의과학대', '차 의대'],
     '부경대학교': ['국립부경대', '국립부경대학교'],
     '부산과학기술대학교': ['부산과기대'],
     '한국기술교육대학교': ['한기대','KOREATECH'],
@@ -105,7 +106,22 @@ for supplement in SUPPLEMENTS:
 
 
 def compact(value):
-    return re.sub(r'\s+', '', value).lower()
+    return re.sub(r'[\s\u200b\ufeff]+', '', unicodedata.normalize('NFKC',value)).lower()
+
+
+def normalize_university_text(text):
+    """등록된 대학명의 내부 괄호·구분자만 정규화합니다. 원문은 변경하지 않습니다."""
+    text = unicodedata.normalize('NFKC', text)
+    text = re.sub(r'[\u200b\ufeff]', '', text)
+    # '(순천향)대학교', '순천향(대학교)'처럼 명칭에 붙은 괄호만 풉니다.
+    text = re.sub(r'\(([가-힣]+)\)(?=\s*대(?:학교|학)?)', r'\1', text)
+    # '창신(대)' 등 기존 등록 약칭은 원래 형태로 정확히 매칭합니다.
+    # 가운데점/하이픈을 무조건 지우면 두 기관명이 합쳐지므로 등록명만 허용합니다.
+    def join_registered(match):
+        value = match.group()
+        joined = re.sub(r'[·ㆍ-]', '', value)
+        return joined if compact(joined) in ALIAS_CANDIDATES else value
+    return re.sub(r'[가-힣]+(?:[·ㆍ-][가-힣]+)+', join_registered, text)
 
 
 def campus_options(name):
@@ -136,6 +152,10 @@ def campus_options(name):
             options.append(dict(label=label,aliases=[label],records=[record]))
     return options
 ALIAS_CANDIDATES = defaultdict(set)
+NAME_ALIAS_RECORDS=json.loads((Path(__file__).resolve().parent/'university_name_aliases.json').read_text(encoding='utf-8'))['records']
+for record in NAME_ALIAS_RECORDS:
+    if record['name'] in REGISTRY:
+        EXTRA_ALIASES.setdefault(record['name'],[]).extend(record['aliases'])
 for name in REGISTRY:
     aliases = generate_aliases(name,EXTRA_ALIASES.get(name, []))
     for alias in aliases:
@@ -149,14 +169,28 @@ for name, records in ADDRESS_RECORDS.items():
                 label = campus.group(1)
                 variants=[f'{label}폴리텍',f'{label}폴리텍대',f'{label}폴리텍대학']
                 variants += [f'{prefix} {label}캠퍼스' for prefix in ['폴리텍','폴리텍대','폴리텍대학','한국폴리텍','한국폴리텍대','한국폴리텍대학']]
+                variants += [f'{prefix} {label}캠' for prefix in ['폴리텍','폴리텍대','폴리텍대학','한국폴리텍','한국폴리텍대','한국폴리텍대학']]
                 for alias in variants:
                     ALIAS_CANDIDATES[compact(alias)].add(name)
+# 검증된 단일 지역 대학에 붙인 시도 접두 표기(예: 부산동명대).
+# 복수 지역 캠퍼스와 병원은 확장하지 않고 기존 긴 명칭 우선 규칙을 유지합니다.
+for alias, names in list(ALIAS_CANDIDATES.items()):
+    if len(names) != 1 or not alias.endswith(('대', '대학교')):
+        continue
+    name = next(iter(names))
+    records = ADDRESS_RECORDS.get(name, [])
+    regions = {record['region'] for record in records}
+    if len(regions) == 1:
+        region = next(iter(regions))
+        prefix = '경기' if region == '경기도' else region
+        if not alias.startswith(prefix):
+            ALIAS_CANDIDATES[prefix + alias].add(name)
 # 띄어쓰기 유무가 달라도 같은 대학을 인식합니다.
 ALIASES = {alias:next(iter(names)) for alias,names in ALIAS_CANDIDATES.items() if len(names)==1}
 ALIASES_BY_SCHOOL=defaultdict(list)
 for alias,name in ALIASES.items():ALIASES_BY_SCHOOL[name].append(alias)
 # 가장 긴 대학명부터 매칭하여 '남서울대'를 '서울대'로 인식하지 않게 합니다.
-PATTERN = re.compile(r'(?<![가-힣a-zA-Z0-9])(' + '|'.join(r'\s*'.join(re.escape(char) for char in a) for a in sorted(ALIAS_CANDIDATES, key=len, reverse=True)) + ')', re.I)
+PATTERN = re.compile(r'(?<![가-힣a-zA-Z0-9])(' + '|'.join(r'[\s\u200b\ufeff]*'.join(re.escape(char) for char in a) for a in sorted(ALIAS_CANDIDATES, key=len, reverse=True)) + ')', re.I)
 
 
 def select_alias_name(match,text):
@@ -164,12 +198,15 @@ def select_alias_name(match,text):
     candidates=ALIAS_CANDIDATES[key]
     tail=text[match.end():]
     before=text[max(0,match.start()-35):match.start()]
+    if re.search(r'[a-z0-9]$',key) and re.match(r'[a-zA-Z0-9]',tail):return None
     if re.match(r'공원|입구역|역',tail):return None
     if key.endswith('대') and re.match(r'학(?!생|교)',tail):return None
     if key in ('서울대','서울대학교') and (re.match(r'\s*(?:10|열)\s*개(?:\s*만들기)?',tail)
         or re.search(r'(?:10|열)\s*개(?:의)?\s*$',before)):
         return None
     if re.match(r'학소식|학뉴스|학가소식',tail):return None
+    if key.endswith('대학') and re.match(r'소식|뉴스|가소식',tail):return None
+    if key.endswith('대학') and key[:-2] in set(PLACE_NAMES)|{'경기'} and re.match(r'연합|총장협의',tail):return None
     # 해외 동명 기관/해외 분교의 소재지를 국내 대학 본교로 연결하지 않습니다.
     if re.search(r'(?:타슈켄트|하노이|호찌민|호치민)\s*$',before):return None
     if key=='교통대' and re.search(r'(?:상하이|베이징|시안|서안|중국)\s*$',before):return None
@@ -191,6 +228,7 @@ def select_alias_name(match,text):
 
 
 def resolve_universities(text):
+    text=normalize_university_text(text)
     text,facilities=extract_facilities(text)
     found = {}
     occurrences = list(PATTERN.finditer(text))
@@ -204,14 +242,36 @@ def resolve_universities(text):
         prefix = text[start:match.start()]
         options = campus_options(name)
         chosen = [option for option in options if any(
-            compact(alias) in compact(nearby) or compact(prefix).endswith(compact(alias))
+            compact(alias) in compact(nearby) or compact(prefix).endswith(compact(alias)) or compact(match.group()).endswith(compact(alias))
             for alias in option['aliases'])]
-        entry = found.setdefault(name, {'chosen': [], 'unknown': []})
+        cue_evidence=[]
+        if not chosen:
+            for cue in CAMPUS_IDENTITY_CUES:
+                if cue['school']!=name:continue
+                records=[r for r in ADDRESS_RECORDS.get(name,[]) if compact(cue['road']) in compact(r['address'])]
+                if not records or len({r['region'] for r in records})!=1:continue
+                for alias in cue['aliases']:
+                    if cue.get('position')=='before':
+                        found_cue=re.search(r'(?<![가-힣A-Za-z0-9])'+re.escape(alias)+r'\s*$',prefix,re.I)
+                    else:
+                        found_cue=re.match(r'\s*[\[(]?\s*'+re.escape(alias)+r'(?=$|[^가-힣A-Za-z0-9]|캠퍼스)',nearby,re.I)
+                        if found_cue and cue.get('after_pattern') and not re.match(cue['after_pattern'],nearby[found_cue.end():]):
+                            found_cue=None
+                        if found_cue and re.match(r'\s*(?:기업|회사|플랫폼|제품|솔루션|프로그램)',nearby[found_cue.end():]):
+                            found_cue=None
+                    if found_cue:
+                        chosen.append(dict(label=cue['label'],aliases=cue['aliases'],records=records))
+                        cue_evidence.append(dict(text=alias,campus=cue['label'],source=cue['source'],
+                                                 addresses=[r['address'] for r in records],region=records[0]['region']))
+                        break
+        entry = found.setdefault(name, {'chosen': [], 'unknown': [], 'cue_evidence': []})
+        entry['cue_evidence'].extend(cue_evidence)
         entry['chosen'].extend(chosen)
         if not chosen:
             unknown = re.findall(r'([가-힣A-Za-z]{2,16})\s*캠퍼스', nearby)
-            descriptions = {'현장','고령친화','디지털','가상','온라인','스마트','산학협력','미래','미래형','혁신','오픈','개방','행복','필드','풀리','낭만','직무','기간','다소비','새로운','맞아','가을','듣고','팝업','지하','함께','열린','도심','대학','사흘간','이틀간','아이디어로','중장년일자리','RISE','rise'}
-            unknown = [label for label in unknown if label not in descriptions and not label.endswith(('형','는','은','한','들의','의','과','와'))]
+            descriptions = {'현장','고령친화','디지털','가상','온라인','스마트','산학협력','미래','미래형','혁신','오픈','개방','행복','필드','풀리','낭만','직무','기간','다소비','새로운','맞아','가을','듣고','팝업','지하','함께','열린','도심','대학','사흘간','이틀간','아이디어로','중장년일자리','에코','eco','ai','RISE','rise','전국'}
+            unknown=[label for label in unknown if compact(label) not in {compact(x) for x in descriptions}]
+            unknown = [label for label in unknown if label not in descriptions and label not in ('초청해','방문해','찾아','둘러본') and not label.endswith(('형','는','은','한','들의','의','과','와'))]
             entry['unknown'].extend(label+'캠퍼스' for label in unknown)
     results = []
     shared=re.search(r'([가-힣]{2,5})공동캠퍼스',text.split('\n')[0])
@@ -236,10 +296,16 @@ def resolve_universities(text):
         regions=sorted(set(regions)|{location['region'] for location in region_evidence})
         if not chosen and not entry['unknown'] and not records and not region_evidence:
             regions = REGISTRY[name]
+        network_campus = name.startswith('한국폴리텍') and name != '한국폴리텍대학'
+        network_campus_names = [
+            match.group(1) for record in records
+            if (match := re.search(r'([가-힣]+캠퍼스)$', record.get('original_name', '')))
+        ] if network_campus else []
         results.append(dict(name=name, regions=regions, records=records,
-                            campus_names=sorted({o['label'] for o in chosen} or set(entry['unknown'])),
+                            campus_cue_evidence=entry['cue_evidence'],
+                            campus_names=sorted({o['label'] for o in chosen} or set(entry['unknown']) or set(network_campus_names)),
                             campus_region_evidence=region_evidence,
-                            campus_status='matched' if chosen and records else 'region_only' if region_evidence else 'unresolved' if chosen or entry['unknown'] else 'not_specified'))
+                            campus_status='matched' if (chosen or network_campus) and records else 'region_only' if region_evidence else 'unresolved' if chosen or entry['unknown'] else 'not_specified'))
     for facility in facilities:
         name=facility['school']
         record=dict(name=name,original_name=facility['name'],campus=facility['name'],region=facility['region'],
@@ -248,6 +314,9 @@ def resolve_universities(text):
         if entry is None:
             entry=dict(name=name,regions=[],records=[],campus_names=[],campus_region_evidence=[],campus_status='matched')
             results.append(entry)
+        elif entry['campus_status'] not in ('matched','region_only') and entry.get('affiliation_type')!='university_hospital':
+            # 같은 대학의 일반 언급이 함께 있어도 병원 소재지에 본교 후보를 합치지 않습니다.
+            entry.update(regions=[],records=[],campus_names=[],campus_region_evidence=[],campus_status='matched')
         entry['regions']=sorted(set(entry['regions'])|{facility['region']})
         if facility['address']:entry['records'].append(record)
         else:
@@ -289,11 +358,12 @@ FOREIGN_UNIVERSITIES = ['하버드대', '하버드대학교', '스탠퍼드대',
                         '옥스퍼드대', '케임브리지대', '캠브리지대', '엑시터대',
                         '매사추세츠공과대', '예일대', '프린스턴대', '도쿄대', '교토대',
                         '존스홉킨스', '존스 홉킨스', '존즈홉킨스', '존즈 홉킨스']
-CLASSIFICATION_VERSION = 4
+CLASSIFICATION_VERSION = 7
 
 
 def remove_background_affiliations(title, summary):
     """학력/출신 기관을 임용·발표 등 기사의 현재 소속과 구분합니다."""
+    summary=normalize_university_text(summary)
     ignored=[]
     sentences=re.split(r'(?<=[.!?。])\s+',summary)
     cleaned=[]
@@ -345,7 +415,8 @@ def foreign_region_evidence(text, method):
     for name in FOREIGN_NAMES:
         match = re.search(r'(?<![가-힣A-Za-z])' + re.escape(name) + ending, text)
         if match:
-            sentence = re.split(r'[.!?。\n]', text[:match.start()])[-1] + text[match.start():].split('.')[0]
+            # NFKC가 '…'를 '...'로 바꿔도 같은 문맥을 잘라 버리지 않습니다.
+            sentence = re.split(r'(?<!\.)[.!?。\n](?!\.)', text[:match.start()])[-1] + re.split(r'(?<!\.)[.!?。\n](?!\.)', text[match.start():])[0]
             if re.search(REFERENCE_CONTEXT, sentence) and not re.search(INTERNATIONAL_ACTION, sentence):
                 continue
             if re.search(r'대학|캠퍼스|유학|' + INTERNATIONAL_ACTION, sentence):
@@ -426,19 +497,103 @@ def relevant_summary_regions(summary, known_regions, include_foreign):
     return evidence
 
 
+def apply_region_priority(universities,mentioned):
+    """검증된 캠퍼스 > 유일 소재지 > 기사 지역과 주소 교차. 후보 전체는 결과가 아닙니다."""
+    result=[]
+    for original in universities:
+        university=dict(original)
+        article_regions={p['region'] for p in mentioned if p['region']!='해외' and p.get('role')=='university_location' and university['name'] in p.get('location_universities',[])}
+        candidates=set(university['regions'])
+        university['candidate_regions']=sorted(candidates)
+        status=university['campus_status']
+        if status in ('matched','region_only'):
+            university['region_resolution']='verified_campus' if status=='matched' else 'explicit_campus_locality'
+        elif status=='not_specified' and len(candidates)==1:
+            university['region_resolution']='unique_verified_location' if university['records'] else 'legacy_registry'
+        elif status=='not_specified' and len(candidates)>1:
+            intersection=candidates&article_regions
+            if len(intersection)==1:
+                university['regions']=sorted(intersection)
+                university['records']=[r for r in university['records'] if r['region'] in intersection]
+                university['region_resolution']='article_address_intersection'
+            else:
+                university['candidate_records']=university['records']
+                university['records']=[]
+                university['regions']=[]
+                university['region_resolution']='campus_unspecified'
+        else:
+            university['region_resolution']='campus_unverified' if status=='unresolved' else 'location_unavailable'
+        result.append(university)
+    return result
+
+
+def subject_title_text(title):
+    """제목의 학력 수식어도 실제 주제 대학과 구분합니다."""
+    title=normalize_university_text(title)
+    ignored=[];spans=[]
+    for match in PATTERN.finditer(title):
+        after=title[match.end():]
+        if re.match(r'\s*출신\s*\d',after) or re.search(r'모교(?:를|에)?\s*(?:찾|방문)',after):continue
+        if re.match(r'\s*(?:출신|를?\s*졸업한|졸업생(?:인|이|의|,)|동문(?:인|으로))',after):
+            name=select_alias_name(match,title)
+            if name:ignored.append(dict(name=name,reason='제목의 학력·출신 수식어'));spans.append(match.span())
+    for alias in sorted(FOREIGN_UNIVERSITIES,key=len,reverse=True):
+        for match in re.finditer(r'(?<![가-힣A-Za-z])'+re.escape(alias)+r'(?=\s*출신)',title):
+            ignored.append(dict(name=alias,reason='제목의 해외 출신 대학'));spans.append(match.span())
+    # 겹치는 긴/짧은 해외 별칭 구간을 한 번만 마스킹합니다.
+    chars=list(title)
+    for start,end in spans:chars[start:end]=[' ']*(end-start)
+    return ''.join(chars),ignored
+
+
+def remove_secondary_affiliations(title,summary):
+    primary={name for m in PATTERN.finditer(title) if (name:=select_alias_name(m,title))}
+    if not primary:return summary,[]
+    ignored=[];result=[]
+    for sentence in re.split(r'(?<=[.!?。])\s+',summary):
+        spans=[]
+        if not re.search(r'공동|협약|협력|함께|주관|주최',sentence):
+            for match in PATTERN.finditer(sentence):
+                name=select_alias_name(match,sentence)
+                if not name or name in primary:continue
+                after=sentence[match.end():match.end()+110]
+                if re.search(r'(?:총장|교수|학장|이사장).{0,80}(?:참석|축사|내빈|격려사)',after):
+                    spans.append(match.span());ignored.append(dict(name=name,reason='행사 참석자의 소속 대학'))
+        for start,end in reversed(spans):sentence=sentence[:start]+' '*(end-start)+sentence[end:]
+        result.append(sentence)
+    return '\n'.join(result),ignored
+
+
+def extract_article_universities(title, summary=''):
+    """지역을 판정하거나 데이터를 쓰지 않고 주제·배경 대학명을 추출합니다."""
+    title=normalize_university_text(title)
+    summary=normalize_university_text(summary)
+    subject_title,title_background=subject_title_text(title)
+    subject_summary,background=remove_background_affiliations(subject_title,summary)
+    subject_summary,secondary=remove_secondary_affiliations(subject_title,subject_summary)
+    subjects=resolve_universities(subject_title+'\n'+subject_summary)
+    all_mentions=resolve_universities(title+'\n'+summary)
+    return dict(subjects=[dict(name=u['name'],affiliation_type=u.get('affiliation_type','university')) for u in subjects],
+                background=title_background+background+secondary,
+                mentions=[u['name'] for u in all_mentions])
+
+
 def reclassify_article(item):
     subject_summary,background = remove_background_affiliations(item['title'],item.get('body',''))
-    matches = resolve_universities(item['title'] + '\n' + subject_summary)
-    foreign_subjects=foreign_subject_names(item['title'])
+    subject_title,title_background=subject_title_text(item['title'])
+    subject_summary,secondary=remove_secondary_affiliations(subject_title,subject_summary)
+    background=title_background+background+secondary
+    matches = resolve_universities(subject_title + '\n' + subject_summary)
+    foreign_subjects=foreign_subject_names(subject_title)
     newsroom_school=''
-    if not matches and not foreign_subjects:
+    if not matches and not foreign_subjects and not background:
         # 공식 뉴스룸은 학과·부서 이름만 제목에 쓰기도 하므로 발행 대학을 보완합니다.
         publisher=compact(item.get('source',''))
         newsroom_school=next((name for name in REGISTRY
                               if publisher in (compact(name),compact(name+'뉴스룸'),compact(name+'공식뉴스룸'))),'')
         if newsroom_school:
             matches=resolve_universities(newsroom_school+'\n'+item['title']+'\n'+subject_summary)
-    mentioned = explicit_title_regions(item['title'])
+    mentioned = explicit_title_regions(subject_title)
     base_regions={r for university in matches for r in university['regions']} | {p['region'] for p in mentioned}
     local_evidence, programs = local_education_context(item['title'], item.get('body',''),base_regions)
     for place in local_evidence:
@@ -452,26 +607,54 @@ def reclassify_article(item):
     for place in summary_places:
         if not any(p['region']==place['region'] for p in mentioned):
             mentioned.append(place)
+    for place in mentioned:
+        role='article_context'
+        location_universities=[]
+        if place.get('reason')=='행사 개최 장소':role='event_venue'
+        elif place.get('reason')=='공동 주관기관':role='partner_location'
+        # '경기도 한양대'처럼 대학명 바로 앞의 소재지 표현만 교차 근거로 씁니다.
+        for match in PATTERN.finditer(subject_title+'\n'+subject_summary):
+            name=select_alias_name(match,subject_title+'\n'+subject_summary)
+            if name and re.search(
+                    re.escape(place['text'])+r'\s*(?:소재\s*)?$',(subject_title+'\n'+subject_summary)[:match.start()]):
+                role='university_location'
+                location_universities.append(name)
+        place['role']=role
+        place['location_universities']=sorted(set(location_universities))
+    matches=apply_region_priority(matches,mentioned)
     if not any(p['region']=='해외' for p in mentioned):
         foreign_subjects=[]
-    regions = sorted({region for u in matches for region in u['regions']} | {place['region'] for place in mentioned})
+    # 대학이 확인되면 기사에 언급된 행사장/협력기관 지역을 소재지로 합산하지 않습니다.
+    university_regions = {region for u in matches for region in u['regions']}
+    address_candidates = {region for u in matches for region in u.get('candidate_regions',u['regions'])}
+    # 해외는 기존 국제교류 주제 카테고리로 유지하며 국내 주소 충돌과 구분합니다.
+    conflicts = [place for place in mentioned if address_candidates and place['region']!='해외' and place['region'] not in address_candidates]
+    regions = sorted(university_regions if matches else {place['region'] for place in mentioned})
+    if matches and any(place['region']=='해외' for place in mentioned):
+        regions=sorted(set(regions)|{'해외'})
+    # 협력기관/행사장의 다른 지역은 검토 근거로 남기되 검증된 대학 지역을 지우지 않습니다.
     evidence = []
     for university in matches:
         name, candidates, records = university['name'], university['regions'], university['records']
         campuses = []
-        for record in records:
+        for record in records or university.get('candidate_records',[]):
             labels = [o['label'] for o in campus_options(name) if any(r['address']==record['address'] for r in o['records'])]
             campuses.append(dict(name=' / '.join(sorted(set(labels))) or record.get('campus','캠퍼스명 미확인'),
-                                 address=record['address'], region=record['region'], source=record.get('source',DIRECTORY_SOURCE)))
+                                 address=record['address'], region=record['region'], source=record.get('source',DIRECTORY_SOURCE),
+                                 confirmed=bool(records)))
         for location in university['campus_region_evidence']:
             campuses.append(dict(name=location['name'],address='',region=location['region'],source=location['source']))
         evidence.append(dict(name=name, regions=candidates,
+                             candidate_regions=university.get('candidate_regions',candidates),
+                             region_resolution=university.get('region_resolution','verified_campus'),
+                             address_directory_match=bool(ADDRESS_RECORDS.get(name)) or university.get('affiliation_type')=='university_hospital',
                              affiliation_type=university.get('affiliation_type','university'),
+                             campus_cue_evidence=university.get('campus_cue_evidence',[]),
                              identification_method='official_newsroom' if name==newsroom_school else 'article_text',
                              identification_source=item.get('source','') if name==newsroom_school else '',
                              addresses=sorted({r['address'] for r in records}),
-                             source=DIRECTORY_SOURCE if records else '',
-                             method='national_network' if name=='한국폴리텍대학' and not candidates else 'address_directory' if records else 'campus_region' if university['campus_status']=='region_only' else 'campus_unresolved' if university['campus_status']=='unresolved' else 'manual_registry',
+                             source=records[0]['source'] if records and university.get('affiliation_type')=='university_hospital' else DIRECTORY_SOURCE if records or university.get('candidate_records') else '',
+                             method='national_network' if name=='한국폴리텍대학' and not candidates else 'campus_ambiguous' if university.get('region_resolution')=='campus_unspecified' else 'address_directory' if records else 'campus_region' if university['campus_status']=='region_only' else 'campus_unresolved' if university['campus_status']=='unresolved' else 'manual_registry',
                              campus_names=university['campus_names'], campus_status=university['campus_status'], campuses=campuses))
     subjects=[u['name'] for u in matches]+foreign_subjects
     school_aliases=sorted({alias for u in matches for alias in ALIASES_BY_SCHOOL[u['name']]})
@@ -481,4 +664,7 @@ def reclassify_article(item):
                 regions=regions, region=regions[0] if len(regions) == 1 else '',
                 city=' · '.join(regions) or '지역 미분류', universities=evidence, mentioned_regions=mentioned, education_programs=programs,
                 classification_status='classified' if regions else 'needs_review', classification_version=CLASSIFICATION_VERSION,
-                background_universities=background,foreign_universities=foreign_subjects)
+                background_universities=background,foreign_universities=foreign_subjects,
+                region_review_reasons=['대학 소재지와 기사 지역 불일치'] if conflicts else [],
+                conflicting_region_evidence=conflicts,
+                address_missing_names=[u['name'] for u in matches if not ADDRESS_RECORDS.get(u['name']) and u.get('affiliation_type')!='university_hospital'])

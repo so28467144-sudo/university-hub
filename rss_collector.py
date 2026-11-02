@@ -23,6 +23,8 @@ from article_links import resolve_newsroom_link
 from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
 from classification_monitor import build_report
+from rss_summaries import select_summary, preserve_summary, USEFUL_KINDS
+from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors
 
 
 class PlainText(HTMLParser):
@@ -78,6 +80,19 @@ def classify(title, summary):
     return matches, regions, category
 
 
+def deduplicate_preserving_links(items):
+    """기존 중복 판정은 유지하고 과거 대표에 연결된 ID도 보존합니다."""
+    by_id = {item['id']: item for item in items}
+    rows = deduplicate(items)
+    for row in rows:
+        ids = set(row.get('duplicate_ids', [row['id']]))
+        for item_id in tuple(ids):
+            ids.update(by_id.get(item_id, {}).get('duplicate_ids', []))
+        row['duplicate_ids'] = sorted(ids)
+        row['duplicate_count'] = len(ids)
+    return rows
+
+
 def parse_feed(raw, source, default_offset=None):
     if b'<!DOCTYPE' in raw.upper() or b'<!ENTITY' in raw.upper():
         raise ValueError('DTD is not supported')
@@ -89,10 +104,6 @@ def parse_feed(raw, source, default_offset=None):
         if tag_name(item) not in ('item', 'entry'):
             continue
         title = clean(field(item, 'title'))
-        body = clean(field(item, 'description', 'summary', 'content', 'encoded'))[:500]
-        match = classify(title, body)
-        if not title or match is None:
-            continue
         link = field(item, 'link')
         for child in item:
             if tag_name(child) == 'link' and child.get('href') and child.get('rel', 'alternate') == 'alternate':
@@ -104,9 +115,11 @@ def parse_feed(raw, source, default_offset=None):
         publisher = clean(field(item, 'source')) if google else source
         if google and publisher and title.endswith(' - ' + publisher):
             title = title[:-len(' - ' + publisher)]
-        if google:
-            # 구글 RSS description은 요약 대신 제목과 출처를 반복합니다.
-            body = '구글 뉴스에서 수집한 기사입니다. 기사 내용을 확인하려면 기사 보기 버튼을 눌러 주세요.'
+        summary = select_summary(item, title, publisher or source, google)
+        body = summary['body']
+        match = classify(title, body if summary['summary_kind'] in USEFUL_KINDS else '')
+        if not title or match is None:
+            continue
         matches, regions, category = match
         rows.append(reclassify_article(dict(
             id=hashlib.sha256(link.encode()).hexdigest()[:24],
@@ -116,6 +129,8 @@ def parse_feed(raw, source, default_offset=None):
             regions=regions, region=regions[0] if len(regions) == 1 else '',
             city=' · '.join(regions) or '지역 미분류', mark='N', category=category,
             date=parse_date(field(item, 'pubdate', 'published', 'date', 'updated'), default_offset),
+            summary_kind=summary['summary_kind'], summary_source=summary['summary_source'],
+            summary_selection_reason=summary['summary_selection_reason'],
         )))
     return rows
 
@@ -126,13 +141,14 @@ class Collector:
         self.news = []
         self.raw_news = []
         self.search_cursor = 0
+        self.region_change_reviews = []
+        self.new_article_ids = set()
         self.status = dict(state='collecting', lastSuccess=None, errors=[], sources=[])
         try:
             cached = json.loads(CACHE.read_text(encoding='utf-8'))
-            self.raw_news = [reclassify_article(item) for item in cached.get('raw_news',cached['news'])]
-            unique_news = deduplicate(self.raw_news)
-            self.news = unique_news[:MAX_ARTICLES]
-            self.status['duplicates_removed'] = len(self.raw_news)-len(unique_news)
+            self.raw_news = merge_raw_sources(cached.get('raw_news', cached['news']), cached['news'])
+            self.news = [dict(item) if 'regions' in item else reclassify_article(item) for item in cached['news']][:MAX_ARTICLES]
+            self.status['duplicates_removed'] = max(0, len(self.raw_news)-len(self.news))
             self.status['lastSuccess'] = cached.get('lastSuccess')
             self.search_cursor = cached.get('search_cursor',0)
         except (OSError, ValueError, KeyError):
@@ -211,31 +227,76 @@ class Collector:
                                  total=sum(s.get('total',0) for s in expanded_statuses),count=sum(s['count'] for s in expanded_statuses),
                                  ok=any(s['ok'] for s in expanded_statuses)))
         with self.lock:
+            previous_news = list(self.news)
+            previous_raw = list(self.raw_news)
             merged = {item['id']: item for item in self.raw_news}
             known_ids=set(merged)
             observed=[]
+            proposals={}
             seen_at=datetime.now(timezone.utc).isoformat()
             for item in received:
                 previous = merged.get(item['id'])
+                received_body = item.get('body')
+                item = preserve_summary(previous, item)
+                if item.get('body') != received_body:
+                    item = reclassify_article(item)
                 if previous and previous.get('original_url') and not item.get('original_url'):
                     item = dict(item, original_url=previous['original_url'])
                 if previous and previous.get('date') and not item.get('date'):
                     item = dict(item, date=previous['date'])
+                if previous and previous.get('duplicate_ids'):
+                    ids = set(previous['duplicate_ids']) | set(item.get('duplicate_ids', [])) | {item['id']}
+                    item = dict(item, duplicate_ids=sorted(ids), duplicate_count=len(ids))
                 item=dict(item,first_seen=previous.get('first_seen',seen_at) if previous else seen_at,last_seen=seen_at)
-                merged[item['id']] = item
+                proposals[item['id']] = item
+                merged[item['id']] = merge_raw_record(previous, item)
                 observed.append(item)
             classification_report=build_report(observed,known_ids)
             self.status['classification_check']={key:classification_report[key] for key in ('checked_at','checked_count','new_count','updated_count','error_count','review_count')}
-            self.raw_news = sorted(merged.values(), key=lambda n: n['date'], reverse=True)[:MAX_ARTICLES*3]
-            unique_news = deduplicate(self.raw_news)
-            self.news = unique_news[:MAX_ARTICLES]
+            raw_news = sorted(merged.values(), key=lambda n: n.get('date', ''), reverse=True)
+            public_by_id = {item['id']: dict(item) for item in previous_news}
+            self.region_change_reviews = []
+            for old in previous_news:
+                raw_item = merged.get(old['id'], old)
+                proposed = proposals.get(old['id'])
+                if proposed is None:
+                    proposed = reclassify_article(dict(raw_item, **raw_item.get('pending_update', {})))
+                review = region_review(old, proposed)
+                if review: self.region_change_reviews.append(review)
+            new_ids = set(merged)-known_ids
+            unique_news = deduplicate_preserving_links(raw_news)
+            additions = []
+            for representative in unique_news:
+                aliases = set(representative.get('duplicate_ids', [representative['id']]))
+                existing = aliases & public_by_id.keys()
+                if existing:
+                    for article_id in existing:
+                        row = public_by_id[article_id]
+                        ids = set(row.get('duplicate_ids', [article_id])) | aliases
+                        row.update(duplicate_ids=sorted(ids), duplicate_count=len(ids))
+                elif aliases & new_ids:
+                    additions.append(reclassify_article(representative))
+            news = list(public_by_id.values())
+            if additions:
+                news = sorted(news+additions, key=lambda n: n.get('date', ''), reverse=True)[:MAX_ARTICLES]
+            violations = publication_errors(previous_news, previous_raw, news, raw_news, new_ids)
+            classification_report['region_change_reviews'] = self.region_change_reviews
+            if violations:
+                self.status.update(state='error', safety_violations=violations)
+                self.status['errors'].append('공개 데이터 보존 검사 실패로 교체를 중단했습니다.')
+                return
+            self.raw_news, self.news = raw_news, news
+            self.new_article_ids = new_ids
             if successes:
                 self.status['lastSuccess'] = datetime.now(timezone.utc).isoformat()
             self.status.update(state='partial' if successes and errors else 'ready' if successes else 'error', errors=errors, sources=statuses)
             self.status['duplicates_removed'] = len(self.raw_news)-len(unique_news)
+            self.status['region_change_review_count'] = len(self.region_change_reviews)
+            self.status['proposed_region_downgrades_retained'] = sum(bool(r['previous_regions']) and not r['proposed_regions'] for r in self.region_change_reviews)
             self.search_cursor=next_cursor
             self.status.update(search_next_cursor=next_cursor,search_plan_total=len(plan),search_batch_size=len(batch))
-            cached = dict(news=self.news, raw_news=self.raw_news, lastSuccess=self.status['lastSuccess'],search_cursor=self.search_cursor)
+            cached = dict(news=self.news, raw_news=self.raw_news, lastSuccess=self.status['lastSuccess'],search_cursor=self.search_cursor,
+                          region_change_reviews=self.region_change_reviews)
         if successes:
             try:
                 temporary = CACHE.with_suffix('.tmp')

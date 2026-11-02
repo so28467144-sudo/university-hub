@@ -2,6 +2,40 @@
 import re
 
 FACILITIES=[
+    dict(name='고려대학교안산병원',school='고려대학교',aliases=['고려대학교안산병원','고려대안산병원','고대안산병원'],
+         region='경기도',address='경기도 안산시 단원구 적금로 123',source='https://health.kumc.or.kr/center/directions.do'),
+    dict(name='고려대학교안암병원',school='고려대학교',aliases=['고려대학교안암병원','고려대안암병원','고대안암병원'],
+         region='서울',address='서울특별시 성북구 고려대로 73',source='https://centerforesg.kumc.or.kr/downloadFile.do?attachNo=15101'),
+    dict(name='중앙대학교광명병원',school='중앙대학교',aliases=['중앙대학교광명병원','중앙대광명병원'],
+         region='경기도',address='경기도 광명시 덕안로 110',source='https://www.cauhs.or.kr/'),
+    dict(name='중앙대학교병원',school='중앙대학교',aliases=['중앙대학교병원','중앙대병원'],
+         region='서울',address='서울특별시 동작구 흑석로 102',source='https://ch.cauhs.or.kr/ghealth/conts/103002001000000.do'),
+    dict(name='전남대학교병원',school='전남대학교',aliases=['전남대학교병원','전남대병원'],
+         region='광주',address='광주광역시 동구 제봉로 42',source='https://www.cnuh.com/ccrc/sub.cs?m=19'),
+    dict(name='한양대학교병원',school='한양대학교',aliases=['한양대학교병원','한양대병원'],
+         region='서울',address='서울특별시 성동구 왕십리로 222-1',source='https://seoul.hyumc.com/'),
+    dict(name='한양대학교암병원',school='한양대학교',aliases=['한양대학교암병원','한양대암병원'],
+         region='서울',address='서울특별시 성동구 왕십리로 222-1',source='https://seoul.hyumc.com/tp/cancer/conts.do?tplMenuCd=002004000000000'),
+    dict(name='건양대학교병원',school='건양대학교',aliases=['건양대학교병원','건양대병원'],
+         region='대전',address='대전광역시 서구 관저동로 158',source='https://www.kyuh.ac.kr/ocs/'),
+    dict(name='동국대학교일산병원',school='동국대학교',aliases=['동국대학교일산병원','동국대일산병원','동국대학교일산불교병원','동국대일산불교병원'],
+         region='경기도',address='경기도 고양시 일산동구 동국로 27',source='https://www.dumc.or.kr/is/'),
+    dict(name='동국대학교일산한방병원',school='동국대학교',aliases=['동국대학교일산한방병원','동국대일산한방병원'],
+         region='경기도',address='경기도 고양시 일산동구 동국로 27',source='https://www.dumc.or.kr/isom/conts/104006000000000.do'),
+    dict(name='가톨릭대학교인천성모병원',school='가톨릭대학교',aliases=['가톨릭대학교인천성모병원','가톨릭대인천성모병원','인천성모병원'],
+         region='인천',address='인천광역시 부평구 동수로 56',source='https://mgrdc.cmcism.or.kr/theme/s007/index/location.php'),
+    dict(name='가톨릭대학교은평성모병원',school='가톨릭대학교',aliases=['가톨릭대학교은평성모병원','가톨릭대은평성모병원','은평성모병원'],
+         region='서울',address='서울특별시 은평구 통일로 1021',source='https://www.cmcep.or.kr/'),
+    dict(name='가톨릭대학교성빈센트병원',school='가톨릭대학교',aliases=['가톨릭대학교성빈센트병원','가톨릭대성빈센트병원','성빈센트병원'],
+         region='경기도',address='경기도 수원시 팔달구 중부대로 93',source='https://www.cmcvincent.or.kr/'),
+    dict(name='단국대학교병원',school='단국대학교',aliases=['단국대학교병원','단국대병원'],
+         region='충남',address='충청남도 천안시 동남구 망향로 201',source='https://www.dkuh.co.kr/mobile_2016/01/2025_dkuh_inpatient.pdf'),
+    dict(name='한양대학교구리병원',school='한양대학교',aliases=['한양대학교구리병원','한양대구리병원'],
+         region='경기도',address='경기도 구리시 경춘로 153',source='https://guri.hyumc.com/search/search.do'),
+    dict(name='고려대학교구로병원',school='고려대학교',aliases=['고려대학교구로병원','고려대구로병원','고대구로병원'],
+         region='서울',address='서울특별시 구로구 구로동로 148',source='https://guro.kumc.or.kr/kr/service-guide/hospital-information/directions.do'),
+    dict(name='건국대학교병원',school='건국대학교',aliases=['건국대학교병원','건국대병원'],
+         region='서울',address='서울특별시 광진구 능동로 120-1',source='https://www.kuh.ac.kr/english/guide/directions.do'),
     dict(name='가천대 길병원',school='가천대학교',aliases=['가천대길병원','가천대학교길병원'],
          region='인천',address='',source='https://www.ichealthedu.kr/main/page.jsp?code=intro_gil'),
     dict(name='강동경희대학교병원',school='경희대학교',aliases=['강동경희대학교병원','강동경희대병원'],
@@ -20,11 +54,17 @@ FACILITIES=[
 
 def extract_facilities(text):
     matches=[]
-    spans=[]
+    candidates=[]
     for record in FACILITIES:
         for alias in record['aliases']:
-            for match in re.finditer(r'\s*'.join(map(re.escape,alias)),text):
-                spans.append(match.span())
-                if record not in matches:matches.append(record)
-    for start,end in sorted(set(spans),reverse=True):text=text[:start]+' '*(end-start)+text[end:]
+            for match in re.finditer(r'(?<![가-힣A-Za-z0-9])'+r'\s*'.join(map(re.escape,alias)),text):
+                if re.match(r'\s*분원',text[match.end():]):continue
+                candidates.append((match.start(),match.end(),record))
+    # 동일 구간은 가장 긴 기관명이 우선입니다. 같은 병원을 약칭/정식명으로 중복 등록하지 않습니다.
+    spans=[]
+    for start,end,record in sorted(candidates,key=lambda item:(-(item[1]-item[0]),item[0])):
+        if any(start<old_end and old_start<end for old_start,old_end in spans):continue
+        spans.append((start,end))
+        if record not in matches:matches.append(record)
+    for start,end in sorted(spans,reverse=True):text=text[:start]+' '*(end-start)+text[end:]
     return text,matches

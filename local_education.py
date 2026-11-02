@@ -48,6 +48,9 @@ def local_education_context(title, summary='', known_regions=()):
         if not candidates:
             continue
         record = candidates[0]
+        regional_universities=re.search(r'(?<![가-힣])'+re.escape(name[:-1])+r'(?:'+re.escape(name[-1])+r')?\s+(?:\d+\s*개\s*)?대학(?:\s|[,，·]|과|이|의|연합|교)',title)
+        if name=='광주시' and '경기도' not in known_regions:regional_universities=None
+        if regional_universities:add(record,regional_universities.group(),'title_region','시·군 명시 대학 연합·지원 문맥')
         direct = re.search(re.escape(name[:-1])+r'\s*(?:'+re.escape(name[-1])+r'\s*)?'+PROGRAM,title)
         title_actor = False
         for match in re.finditer(r'(?<![가-힣])'+re.escape(name),title):
