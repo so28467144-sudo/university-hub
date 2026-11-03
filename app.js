@@ -1,6 +1,7 @@
 'use strict';
 const { categories } = window.CAMPUS_DATA;
-let news=selectPublicRepresentatives(window.CAMPUS_DATA.news,window.CAMPUS_DATA.status?.public_story_groups||[]);
+const isListed=article=>article.relevance!=='hospital_excluded';
+let news=selectPublicRepresentatives((window.CAMPUS_DATA.news||[]).filter(isListed),window.CAMPUS_DATA.status?.public_story_groups||[]);
 let rssStatus=window.CAMPUS_DATA.status;
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel=value=>{
@@ -373,7 +374,8 @@ async function loadNews() {
       throw new Error('뉴스 데이터 형식이 올바르지 않습니다.');
     }
 
-    news = selectPublicRepresentatives(data.news, data.status?.public_story_groups || []);
+    // 부속 병원 자체 소식은 목록·검색·필터·Excel에서 제외합니다. 원본은 news.json에 남아 있습니다.
+    news = selectPublicRepresentatives(data.news.filter(isListed), data.status?.public_story_groups || []);
     rssStatus = data.status || rssStatus;
 
     render();

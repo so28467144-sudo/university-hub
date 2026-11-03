@@ -19,6 +19,7 @@ MAX_ARTICLES = 5000
 
 from university_regions import match_universities, reclassify_article
 from article_dedup import confirmed_deduplicate, public_story_groups, duplicate_review_groups
+from article_relevance import annotate_relevance
 from article_links import resolve_newsroom_link
 from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
@@ -78,6 +79,30 @@ def classify(title, summary):
     regions = sorted({region for _, values in matches for region in values})
     category = classify_category(title,summary)
     return matches, regions, category
+
+
+def publish_university_articles(news, unique_news, raw_by_id, limit=MAX_ARTICLES):
+    """병원 자체 소식은 공개 목록에서 빼고 raw에 사유를 남긴 뒤, 남은 자리를 raw의 대학 기사로 채웁니다."""
+    annotate_relevance(news)
+    shown = [row for row in news if row['relevance'] != 'hospital_excluded']
+    excluded = [row for row in news if row['relevance'] == 'hospital_excluded']
+    claimed = {i for row in news for i in row.get('duplicate_ids', [row['id']])} | {row['id'] for row in news}
+    for representative in sorted(unique_news, key=lambda n: n.get('date', ''), reverse=True):
+        if len(shown) >= limit:
+            break
+        aliases = set(representative.get('duplicate_ids', [representative['id']])) | {representative['id']}
+        if aliases & claimed:
+            continue
+        claimed |= aliases
+        # 공개 목록에 처음 들어오는 기사도 기존 기사와 같은 분류·제외 기준을 거칩니다.
+        row = annotate_relevance([reclassify_article(representative)])[0]
+        (excluded if row['relevance'] == 'hospital_excluded' else shown).append(row)
+    for row in excluded:
+        raw = raw_by_id.get(row['id'])
+        if raw is not None:
+            raw.update(relevance=row['relevance'], relevance_reason=row['relevance_reason'])
+    shown = sorted(shown, key=lambda n: n.get('date', ''), reverse=True)[:limit]
+    return shown, {row['id'] for row in excluded}
 
 
 def deduplicate_preserving_links(items):
@@ -294,7 +319,8 @@ class Collector:
             news = list(public_by_id.values())
             if additions:
                 news = sorted(news+additions, key=lambda n: n.get('date', ''), reverse=True)[:MAX_ARTICLES]
-            violations = publication_errors(previous_news, previous_raw, news, raw_news, new_ids)
+            news, excluded_ids = publish_university_articles(news, unique_news, {r['id']: r for r in raw_news})
+            violations = publication_errors(previous_news, previous_raw, news, raw_news, new_ids, excluded_ids)
             classification_report['region_change_reviews'] = self.region_change_reviews
             if violations:
                 self.status.update(state='error', safety_violations=violations)
@@ -302,11 +328,17 @@ class Collector:
                 return
             self.raw_news, self.news = raw_news, news
             self.new_article_ids = new_ids
+            self.excluded_ids = excluded_ids
             if successes:
                 self.status['lastSuccess'] = datetime.now(timezone.utc).isoformat()
             self.status.update(state='partial' if successes and errors else 'ready' if successes else 'error', errors=errors, sources=statuses)
             self.status['duplicates_removed'] = len(self.raw_news)-len(unique_news)
             self.status['region_change_review_count'] = len(self.region_change_reviews)
+            # 공개 목록에는 병원 자체 소식이 없습니다. 제외 판정은 raw에 사유와 함께 남습니다.
+            # 이미 제외된 기사는 공개 목록에 없으므로 raw에 기록된 제외 판정으로 셉니다.
+            self.status['relevance_counts'] = dict(university=sum(row['relevance'] == 'university' for row in news),
+                                                   review=sum(row['relevance'] == 'review' for row in news),
+                                                   hospital_excluded=sum(row.get('relevance') == 'hospital_excluded' for row in raw_news))
             self.status['public_story_groups'] = public_story_groups(news)
             self.status['duplicate_review_candidates'] = duplicate_review_groups(news)
             self.status['proposed_region_downgrades_retained'] = sum(bool(r['previous_regions']) and not r['proposed_regions'] for r in self.region_change_reviews)

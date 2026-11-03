@@ -121,7 +121,7 @@ def validate_rows(rows, label):
     return errors
 
 
-def publication_errors(previous_news, previous_raw, news, raw, new_ids=()):
+def publication_errors(previous_news, previous_raw, news, raw, new_ids=(), excluded_ids=()):
     errors = validate_rows(news, 'public') + validate_rows(raw, 'raw')
     if errors: return errors
     old = {r['id']: r for r in previous_news}; new = {r['id']: r for r in news}
@@ -130,11 +130,18 @@ def publication_errors(previous_news, previous_raw, news, raw, new_ids=()):
         if ids: errors.append(dict(reason=reason, ids=sorted(ids)))
     add('raw_records_lost', old_raw.keys()-new_raw.keys())
     add('public_record_not_in_raw', new.keys()-new_raw.keys())
+    # 병원 자체 소식 제외만 정당한 공개 목록 감소입니다. raw에 사유와 함께 남아 있어야 합니다.
+    explained = set(excluded_ids)
+    add('excluded_record_not_in_raw', explained-new_raw.keys())
+    add('excluded_record_still_public', explained & new.keys())
+    add('excluded_record_without_reason', {i for i in explained & new_raw.keys()
+                                           if new_raw[i].get('relevance') != 'hospital_excluded' or not new_raw[i].get('relevance_reason')})
     missing = old.keys()-new.keys()
-    if not new_ids: add('public_ids_lost_without_new_articles', missing)
-    if len(news) < min(len(previous_news), 5000):
-        errors.append(dict(reason='public_count_decreased', ids=sorted(missing)))
-    if len(missing) > len(new.keys()-old.keys()): add('unexpected_public_eviction', missing)
+    unexplained = missing-explained
+    if not new_ids: add('public_ids_lost_without_new_articles', unexplained)
+    if len(news)+len(missing & explained) < min(len(previous_news), 5000):
+        errors.append(dict(reason='public_count_decreased', ids=sorted(unexplained)))
+    if len(unexplained) > len(new.keys()-old.keys()): add('unexpected_public_eviction', unexplained)
     if len(news) > 5000: errors.append(dict(reason='public_limit_exceeded', ids=[]))
     for label, before, after in [('raw', old_raw, new_raw), ('public', old, new)]:
         for article_id in before.keys() & after.keys():
