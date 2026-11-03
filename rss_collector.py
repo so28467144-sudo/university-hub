@@ -81,8 +81,9 @@ def classify(title, summary):
     return matches, regions, category
 
 
-def publish_university_articles(news, unique_news, raw_by_id, limit=MAX_ARTICLES):
+def publish_university_articles(news, unique_news, raw_by_id, limit=MAX_ARTICLES, previous_public=None):
     """병원 자체 소식은 공개 목록에서 빼고 raw에 사유를 남긴 뒤, 남은 자리를 raw의 대학 기사로 채웁니다."""
+    previous_public = previous_public or {}
     annotate_relevance(news)
     shown = [row for row in news if row['relevance'] != 'hospital_excluded']
     excluded = [row for row in news if row['relevance'] == 'hospital_excluded']
@@ -94,8 +95,10 @@ def publish_university_articles(news, unique_news, raw_by_id, limit=MAX_ARTICLES
         if aliases & claimed:
             continue
         claimed |= aliases
-        # 공개 목록에 처음 들어오는 기사도 기존 기사와 같은 분류·제외 기준을 거칩니다.
-        row = annotate_relevance([reclassify_article(representative)])[0]
+        # 이번 갱신에서 한도 밖으로 밀렸다가 돌아오는 기존 공개 기사는 공개된 판정을 그대로 씁니다.
+        returning = next((previous_public[i] for i in sorted(aliases) if i in previous_public), None)
+        # 공개 목록에 처음 들어오는 기사는 기존 기사와 같은 분류·제외 기준을 거칩니다.
+        row = annotate_relevance([dict(returning) if returning else reclassify_article(representative)])[0]
         (excluded if row['relevance'] == 'hospital_excluded' else shown).append(row)
     for row in excluded:
         raw = raw_by_id.get(row['id'])
@@ -319,7 +322,8 @@ class Collector:
             news = list(public_by_id.values())
             if additions:
                 news = sorted(news+additions, key=lambda n: n.get('date', ''), reverse=True)[:MAX_ARTICLES]
-            news, excluded_ids = publish_university_articles(news, unique_news, {r['id']: r for r in raw_news})
+            news, excluded_ids = publish_university_articles(news, unique_news, {r['id']: r for r in raw_news},
+                                                             previous_public=public_by_id)
             violations = publication_errors(previous_news, previous_raw, news, raw_news, new_ids, excluded_ids)
             classification_report['region_change_reviews'] = self.region_change_reviews
             if violations:

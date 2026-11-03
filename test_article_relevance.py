@@ -86,6 +86,38 @@ class PublicLimitTests(unittest.TestCase):
         self.assertEqual((raw['h']['relevance'],bool(raw['h']['relevance_reason'])),('hospital_excluded',True))
         self.assertNotIn('relevance',raw['old'])
 
+    def test_previous_public_row_returning_after_eviction_keeps_its_published_regions(self):
+        from rss_collector import publish_university_articles
+        old=dict(self.article('old','서울대 연구팀 기술 개발','2026-10-01T00:00:00+00:00'),regions=['서울'],school='서울대학교')
+        new=self.article('new','인하대 연구팀 신소재 개발','2026-11-02T02:00:00+00:00')
+        hospital=self.article('h','인하대병원, 의료질평가 최상위 등급','2026-11-02T03:00:00+00:00')
+        # 새 기사가 들어와 old가 한도 밖으로 밀린 뒤, 병원 기사 제외로 생긴 자리에 다시 들어오는 경우입니다.
+        pool=[hospital,new,dict(old,regions=[],title='‘인간중심 AI’는 너무 모호하다')]
+        shown,excluded=publish_university_articles([dict(hospital),dict(new)],pool,{},limit=2,previous_public={'old':old})
+        returned=next(r for r in shown if r['id']=='old')
+        self.assertEqual((returned['regions'],returned['title']),(['서울'],'서울대 연구팀 기술 개발'))
+        self.assertEqual(excluded,{'h'})
+
+    def test_real_collection_with_new_articles_and_exclusions_is_not_blocked(self):
+        xml='''<rss><channel>
+        <item><title>인하대 연구팀, 배터리 신소재 개발</title><link>https://example.invalid/n1</link><pubDate>Mon, 02 Nov 2026 02:00:00 GMT</pubDate></item>
+        </channel></rss>'''.encode()
+        rows=[dict(self.article('h','인하대병원, 의료질평가 최상위 등급','2026-11-01T03:00:00+00:00'),regions=['인천'],school='인하대학교'),
+              dict(self.article('o','‘인간중심 AI’는 너무 모호하다…서울대 교수','2026-10-01T00:00:00+00:00'),regions=['서울'],school='서울대학교')]
+        with TemporaryDirectory() as d:
+            root=Path(d)
+            (root/'news.json').write_text(json.dumps(dict(news=rows,status={})),encoding='utf-8')
+            import rss_collector
+            original=rss_collector.MAX_ARTICLES
+            try:
+                rss_collector.MAX_ARTICLES=2
+                out=mock_run(root,xml)
+            finally:
+                rss_collector.MAX_ARTICLES=original
+            by={r['id']:r for r in out['news']}
+            self.assertEqual(by['o']['regions'],['서울'])
+            self.assertNotIn('h',by)
+
     def test_review_articles_are_not_removed(self):
         from rss_collector import publish_university_articles
         news=[self.article('r','아주대병원 압수수색 논란','2026-11-02T03:00:00+00:00')]
