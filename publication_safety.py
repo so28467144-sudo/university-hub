@@ -15,9 +15,34 @@ def verified_unknown_fill(previous, proposed):
     from university_regions import reclassify_article
     decision=reclassify_article(previous)
     schools=decision.get('universities',[])
-    return bool(schools) and set(decision['regions'])==set(proposed['regions']) and not decision.get('conflicting_region_evidence') and all(
+    if set(decision['regions'])!=set(proposed['regions']) or decision.get('conflicting_region_evidence'):return False
+    if not schools:
+        # 대학이 없는 기사는 제목에 명시된 국내 지역 근거만 인정합니다.
+        titled={p['region'] for p in decision.get('mentioned_regions',[]) if p.get('method')=='title_region'}
+        return not decision.get('foreign_universities') and '해외' not in decision['regions'] and set(decision['regions'])<=titled
+    return all(
         u.get('addresses') and u.get('source') and u.get('regions') and u.get('region_resolution') in
-        ('verified_campus','unique_verified_location','article_address_intersection') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
+        ('verified_campus','unique_verified_location','article_address_intersection','campus_place_match','main_campus_default') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
+
+
+def verified_campus_correction(previous, proposed):
+    """기존 지역이 대학 후보 지역에서만 왔고, 공식 주소의 병원·학과 근거가 다른 답을 줄 때만 교정합니다."""
+    old=set(previous.get('regions') or [])
+    if not old or not proposed.get('regions'):return False
+    from university_regions import reclassify_article, REGISTRY, ADDRESS_RECORDS
+    decision=reclassify_article(previous)
+    schools=decision.get('universities',[])
+    new=set(decision['regions'])
+    if new!=set(proposed['regions']) or new==old or decision.get('conflicting_region_evidence') or not schools:return False
+    if ('해외' in old)!=('해외' in new):return False
+    # 기사에 직접 쓰인 지역은 대학 후보가 아니라 기사 근거이므로 바꾸지 않습니다.
+    if any(p['region'] in old-new for p in decision.get('mentioned_regions',[])):return False
+    candidates={r for u in schools for r in REGISTRY.get(u['name'],[])}|{r['region'] for u in schools for r in ADDRESS_RECORDS.get(u['name'],[])}
+    if not (old-{'해외'})<=candidates:return False
+    return all(u.get('region_resolution')=='verified_campus' and u.get('addresses') and u.get('source') and u.get('regions')
+               and (u.get('affiliation_type')=='university_hospital' or u.get('campus_cue_evidence')
+                    or (u.get('campus_status')=='matched' and u.get('campus_names'))) for u in schools) and \
+        new-{'해외'}=={r for u in schools for r in u['regions']}
 
 
 def merge_raw_record(previous, incoming):
@@ -108,6 +133,6 @@ def publication_errors(previous_news, previous_raw, news, raw, new_ids=()):
                 add(label+'_duplicate_links_lost', [article_id])
             if assess_summary(a.get('body', ''), a.get('title', ''))[0] in USEFUL_KINDS and a.get('body') != b.get('body'):
                 add(label+'_useful_summary_lost', [article_id])
-            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b):
+            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b) and not verified_campus_correction(a,b):
                 add('unapproved_existing_region_change', [article_id])
     return errors

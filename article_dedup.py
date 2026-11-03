@@ -7,7 +7,7 @@ import unicodedata
 from functools import lru_cache
 from university_regions import PATTERN,select_alias_name
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-from admission_identity import admission_match, admission_bucket
+from admission_identity import admission_identity, admission_match, admission_bucket
 from rss_summaries import assess_summary, USEFUL_KINDS
 from named_affiliations import extract_facilities
 
@@ -15,6 +15,15 @@ PLACEHOLDER = '구글 뉴스에서 수집한 기사입니다.'
 STOP = {'운영','개최','발표','추진','진행','전격','본격','성료','대학','대학교','지원','강화','위한','통해'}
 EVENT_GENERIC = ('대학일자리플러스센터','대학일자리센터','산학협력단','산학협력','총장직무대리',
                  '업무협약','연구성과','신입생모집','대학원','대학교','청년취업','지역사회')
+PRESS_WINDOW_HOURS = 72
+PRESS_MIN_TITLE_SHARE = .4
+PRESS_LONG_GAP_TITLE_SHARE = .6
+PRESS_DISTINCT_TAIL = 3
+PRESS_GENERIC = STOP|{'교수','교수팀','연구팀','연구','학생','학생들','재학생','총장','부총장','센터','사업단','행사','프로그램',
+                      '교육','협약','체결','선정','수상','기념','모집','참여','확대','신설','취임','임명','머니투데이'}
+PHASE_BEFORE = r'예정|연다|열린다|개최한다|앞두고|내달|다음달|오는\d+일|참가자모집|신청접수'
+PHASE_AFTER = r'성료|마쳐|마무리|폐막|성황리|열려|열었다|개최했|진행했|배출|수료|마감했'
+NEW_FACT_WORDS = r'후속|추가|2차|재개|번복|해명|반박|논란|의혹|수사|고발|소송|징계|합격|결과|취소|철회|연기|사과|입장문'
 
 
 @lru_cache(maxsize=32768)
@@ -317,16 +326,94 @@ def confirmed_deduplicate(items):
     return sorted(result,key=lambda n:n.get('date',''),reverse=True)
 
 
+def story_phase(title):
+    compact=re.sub(r'\s+','',title)
+    if re.search(PHASE_AFTER,compact):return 'after'
+    if re.search(PHASE_BEFORE,compact):return 'before'
+    return ''
+
+
+def distinctive_terms(item):
+    """대학명과 흔한 직함·사업어를 뺀, 사건을 구별하는 제목 단어."""
+    schools=item.get('school_names') or item.get('school','').split(' · ')
+    names={re.sub(r'\W','',normalize(n)) for n in schools}
+    return {t for t in tokens(item) if t not in PRESS_GENERIC and not any(t.startswith(n) for n in names if n)}
+
+
+def press_same_story(first,second):
+    """다른 언론사의 같은 사건 보도. 하나라도 불확실하면 묶지 않습니다."""
+    if any(automatic_merge_exclusion(x) for x in (first,second)):return False
+    if not first.get('date') or not second.get('date'):return False
+    schools=lambda n:set(n.get('school_names') or [])
+    if not schools(first) or schools(first)!=schools(second):return False
+    # 숨긴 기사만 가진 지역·유형이 생기면 필터 결과가 사라집니다.
+    if set(first.get('regions') or [])!=set(second.get('regions') or []):return False
+    if not first.get('regions') or first.get('category')!=second.get('category'):return False
+    if abs((datetime.fromisoformat(first['date'])-datetime.fromisoformat(second['date'])).total_seconds())>PRESS_WINDOW_HOURS*3600:return False
+    if not same_story(first,second):return False
+    # 모집 기사는 양쪽 모두 학년도가 명시되어야 같은 전형으로 봅니다.
+    identities=[admission_identity(x) for x in (first,second)]
+    if any(identities) and not all(i and i['year'] and not i['year_inferred'] for i in identities):return False
+    a,b=normalize(first['title']),normalize(second['title'])
+    words=lambda text:set(re.findall(NEW_FACT_WORDS,re.sub(r'\s+','',text)))
+    if words(a)!=words(b):return False
+    # 행사 예고와 결과 보도는 같은 행사라도 결과가 새 정보입니다.
+    if {story_phase(a),story_phase(b)}=={'before','after'}:return False
+    for pattern in (r'(20\d{2})',r'(\d+)회',r'(\d+)기',r'(\d+)차',r'(\d+)명',r'(\d+)건',r'(\d+)억',r'(\d+)만원',r'(\d+)%'):
+        left,right=set(re.findall(pattern,a)),set(re.findall(pattern,b))
+        if left and right and left!=right:return False
+    terms_a,terms_b=distinctive_terms(first),distinctive_terms(second)
+    shared=terms_a&terms_b
+    if len(shared)<2 or len(shared)/max(1,min(len(terms_a),len(terms_b)))<.5:return False
+    # 같은 기관명 뒤에 서로 다른 사업이 오면 양쪽 모두 고유어가 남습니다.
+    if len(terms_a-shared)>=PRESS_DISTINCT_TAIL and len(terms_b-shared)>=PRESS_DISTINCT_TAIL:return False
+    # 긴 제목에 다른 정보가 많으면 별도 관점이나 부분 중복일 수 있습니다.
+    share=len(shared)/max(len(terms_a),len(terms_b))
+    if share<PRESS_MIN_TITLE_SHARE:return False
+    # 하루 넘게 떨어진 보도는 이어진 다른 활동일 수 있어 제목이 더 많이 같아야 합니다.
+    gap=abs((datetime.fromisoformat(first['date'])-datetime.fromisoformat(second['date'])).total_seconds())/3600
+    if gap>24 and share<PRESS_LONG_GAP_TITLE_SHARE:return False
+    # 여러 소식을 '…'로 이어 붙인 제목은 단일 보도와 같은 기사가 아닙니다.
+    digest=lambda title:len(re.findall(r'…|\.\.\.',title))>=2
+    if digest(first['title'])!=digest(second['title']):return False
+    body_a,body_b=informative_body(first),informative_body(second)
+    if min(len(body_a),len(body_b))>=80 and SequenceMatcher(None,body_a,body_b,autojunk=False).ratio()<.5:return False
+    return True
+
+
+def press_partitions(rows):
+    """모든 쌍이 조건을 만족하는 묶음만 만듭니다. 이어진 기사만으로 합치지 않습니다."""
+    parts=[]
+    for item in sorted(rows,key=quality,reverse=True):
+        target=next((part for part in parts if all(press_same_story(item,other) for other in part)),None)
+        if target is None:parts.append([item])
+        else:target.append(item)
+    return parts
+
+
 def duplicate_review_groups(items):
     by_id={x['id']:x for x in items}
-    return [dict(representative_id=row['id'],article_ids=row['duplicate_ids'],
-                 decision='candidate_only',reason='event similarity is not identity')
-            for row in deduplicate(items) if row['duplicate_count']>1
-            and not all(confirmed_same_story(by_id[row['id']],by_id[i])
-                        for i in row['duplicate_ids'] if i!=row['id'])]
+    groups=[]
+    for row in deduplicate(items):
+        if row['duplicate_count']<2:continue
+        members=[by_id[i] for i in row['duplicate_ids'] if i in by_id]
+        if len(press_partitions(members))==1 or all(confirmed_same_story(by_id[row['id']],m) for m in members if m['id']!=row['id']):continue
+        groups.append(dict(representative_id=row['id'],article_ids=row['duplicate_ids'],
+                           decision='candidate_only',reason='event similarity is not identity'))
+    return groups
 
 
 def public_story_groups(items):
-    return [dict(version=4,representative_id=row['id'],article_ids=row['duplicate_ids'],
+    groups=[dict(version=4,representative_id=row['id'],article_ids=row['duplicate_ids'],
                  basis='identical complete visible content and links')
             for row in confirmed_deduplicate(items) if row['duplicate_count']>1]
+    claimed={i for group in groups for i in group['article_ids']}
+    by_id={x['id']:x for x in items}
+    for row in deduplicate(items):
+        if row['duplicate_count']<2:continue
+        members=[by_id[i] for i in row['duplicate_ids'] if i in by_id and i not in claimed]
+        for part in press_partitions(members):
+            if len(part)<2:continue
+            groups.append(dict(version=5,representative_id=max(part,key=quality)['id'],article_ids=sorted(x['id'] for x in part),
+                               basis='same event across publishers'))
+    return groups

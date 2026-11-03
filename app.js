@@ -1,6 +1,6 @@
 'use strict';
 const { categories } = window.CAMPUS_DATA;
-let news=window.CAMPUS_DATA.news;
+let news=selectPublicRepresentatives(window.CAMPUS_DATA.news,window.CAMPUS_DATA.status?.public_story_groups||[]);
 let rssStatus=window.CAMPUS_DATA.status;
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateLabel=value=>{
@@ -28,11 +28,13 @@ function selectPublicRepresentatives(rows,groups=[]){
   const representative=byId.get(group.representative_id);
   // Never hide unique searchable/filterable/exported content, even if stale
   // server metadata incorrectly claims that two articles are duplicates.
-  if(group.version!==4)continue;
-  const visibleKeys=['title','body','school','school_names','school_aliases','regions','region','city','category','source','date','url','original_url'];
+  if(group.version!==4&&group.version!==5)continue;
+  // 묶을 때 지역·유형이 달라졌다면 숨긴 기사만의 필터 결과가 사라지므로 표시합니다.
+  const visibleKeys=group.version===5?['school_names','regions','category']:['title','body','school','school_names','school_aliases','regions','region','city','category','source','date','url','original_url'];
   if(ids.some(id=>visibleKeys.some(key=>JSON.stringify(byId.get(id)[key])!==JSON.stringify(representative[key]))))continue;
   const aliases=new Set(ids.flatMap(id=>byId.get(id).duplicate_ids||[id]));ids.forEach(id=>aliases.add(id));
-  replacements.set(representative.id,{...representative,duplicate_ids:[...aliases],duplicate_count:aliases.size});
+  const related_reports=group.version===5?ids.filter(id=>id!==representative.id).map(id=>byId.get(id)):[];
+  replacements.set(representative.id,{...representative,duplicate_ids:[...aliases],duplicate_count:aliases.size,related_reports});
   ids.forEach(id=>{claimed.add(id);if(id!==representative.id)hidden.add(id);});
  }
  return rows.filter(row=>!hidden.has(row.id)).map(row=>replacements.get(row.id)||row);
@@ -40,7 +42,8 @@ function selectPublicRepresentatives(rows,groups=[]){
 function normalizeSearch(value){return String(value||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');}
 function matchesSearch(article,query){
  if(!query.trim())return true;
- const text=normalizeSearch([article.school,...(article.school_names||[]),...(article.school_aliases||[]),article.title,article.body,article.city,article.region,article.source].join(' '));
+ const related=(article.related_reports||[]).flatMap(report=>[report.title,report.body,report.source]);
+ const text=normalizeSearch([article.school,...(article.school_names||[]),...(article.school_aliases||[]),article.title,article.body,article.city,article.region,article.source,...related].join(' '));
  if(text.includes(normalizeSearch(query)))return true;
  return query.trim().split(/\s+/).every(term=>text.includes(normalizeSearch(term)));
 }
@@ -80,7 +83,14 @@ function showExportNotice(message){
  exportNoticeTimer=setTimeout(()=>{$('exportStatus').textContent='';},5000);
 }
 function showUniversityAddresses(article){
- $('detailDuplicates').textContent=article.duplicate_count>1?`같은 내용의 기사 ${article.duplicate_count}건 중 RSS 요약과 제목에 확인된 정보가 더 많은 대표 기사를 표시합니다.`:'';
+ const related=article.related_reports||[];
+ $('detailDuplicates').textContent=related.length?`같은 사건을 다룬 다른 보도 ${related.length}건을 함께 묶었습니다.`:article.duplicate_count>1?`같은 내용의 기사 ${article.duplicate_count}건 중 RSS 요약과 제목에 확인된 정보가 더 많은 대표 기사를 표시합니다.`:'';
+ for(const report of related){
+ const line=document.createElement(/^https?:\/\//.test(report.original_url||report.url||'')?'a':'span');line.className='related-report';
+ line.textContent=`${report.title} · ${report.source||'출처 미상'} · ${dateLabel(report.date)}`;
+ if(line.tagName==='A'){line.href=report.original_url||report.url;line.target='_blank';line.rel='noopener noreferrer';}
+ $('detailDuplicates').append(line);
+ }
  const box=$('detailLocations');box.replaceChildren();
  if(article.foreign_universities?.length){const p=document.createElement('p');p.textContent='기사의 해외 대학: '+article.foreign_universities.join(' / ');box.append(p);}
  if(article.background_universities?.length){const p=document.createElement('p');p.textContent='학력·출신 정보로만 언급되어 소재지에서 제외: '+[...new Set(article.background_universities.map(u=>u.name))].join(' / ');box.append(p);}
@@ -93,7 +103,7 @@ function showUniversityAddresses(article){
  const heading=document.createElement('strong');heading.textContent='대학 · 캠퍼스 소재지 확인';box.append(heading);
  for(const university of article.universities){
  const p=document.createElement('p');
- const status=university.method==='national_network'?'대학명은 확인했지만 기사에 캠퍼스가 명시되지 않아 지역을 특정하지 못했습니다.':university.affiliation_type==='university_hospital'?`확인된 대학 부속기관: ${university.campus_names.join(' / ')}`:university.campus_status==='matched'?`확인된 캠퍼스: ${university.campus_names.join(' / ')}`:university.campus_status==='region_only'?`캠퍼스 지역 확인: ${university.campus_names.join(' / ')} (시·군·구만 확인, 상세 주소 미확인)`:university.campus_status==='unresolved'?`주소 미확인: ${university.campus_names.join(' / ')} (본교 주소로 대체하지 않습니다)`:'기사에서 캠퍼스를 특정하지 못했습니다. 아래는 등록된 소재지 후보입니다.';
+ const status=university.region_resolution==='main_campus_default'?'기사에 캠퍼스가 명시되지 않아 본교 소재지 기준으로 분류했습니다.':university.method==='national_network'?'대학명은 확인했지만 기사에 캠퍼스가 명시되지 않아 지역을 특정하지 못했습니다.':university.affiliation_type==='university_hospital'?`확인된 대학 부속기관: ${university.campus_names.join(' / ')}`:university.campus_status==='matched'?`확인된 캠퍼스: ${university.campus_names.join(' / ')}`:university.campus_status==='region_only'?`캠퍼스 지역 확인: ${university.campus_names.join(' / ')} (시·군·구만 확인, 상세 주소 미확인)`:university.campus_status==='unresolved'?`주소 미확인: ${university.campus_names.join(' / ')} (본교 주소로 대체하지 않습니다)`:'기사에서 캠퍼스를 특정하지 못했습니다. 아래는 등록된 소재지 후보입니다.';
  p.textContent=`${university.name} · ${university.regions.join(' / ')||'지역 미분류'}\n${status}`;
  box.append(p);
  if(university.campuses?.length){

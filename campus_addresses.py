@@ -18,6 +18,16 @@ CAMPUS_SELECTORS = {
 
 # 대학명에 바로 붙은 고유 표현만 기존 주소 레코드와 연결합니다. 일반 지명 사전이 아닙니다.
 CAMPUS_IDENTITY_CUES = [
+    dict(school='명지대학교',label='인문캠퍼스',aliases=['아랍지역학과','아랍지역학전공','아랍지역학'],road='거북골로 34',
+         source='https://www.mju.ac.kr/humanities/2797/subview.do'),
+    dict(school='상명대학교',label='천안캠퍼스',aliases=['국어문화원'],road='상명대길 31',
+         source='http://www.smkorean.org/'),
+    dict(school='영산대학교',label='해운대캠퍼스',aliases=['조리예술학부','조리전공','인테리어ㆍ도예디자인학과','도예디자인학과','도예'],road='반송순환로 142',
+         source='https://www.ysu.ac.kr/kor/CMS/DeptIntro/intro.do?mCode=MN389'),
+    dict(school='연세대학교',label='국제캠퍼스',aliases=['K-NIBRT'],road='송도과학로 85',
+         source='https://www.itp.or.kr/intro.asp?tmid=666'),
+    dict(school='전남대학교',label='여수캠퍼스',aliases=['문화사회과학대학','문사대'],road='대학로 50',
+         source='https://yculture.jnu.ac.kr/yculture/17478/subview.do'),
     dict(school='인제대학교',label='김해캠퍼스',aliases=['임상병리학과'],road='인제로 197',
          source='https://cms.inje.ac.kr/biomls/index.do?date=2026-08-01'),
     dict(school='인제대학교',label='김해캠퍼스',aliases=['RISE사업본부'],road='인제로 197',

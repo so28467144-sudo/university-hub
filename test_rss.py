@@ -47,7 +47,7 @@ class FeedTests(unittest.TestCase):
 
     def test_general_campus_words_and_shared_campus(self):
         row=reclassify_article(dict(title='안양대, 축제 개막…사흘간 캠퍼스 대축제',body=''))
-        self.assertEqual(row['regions'],[])  # 안양·강화 중 기사에서 특정하지 않았습니다.
+        self.assertEqual(row['regions'],['경기도'])  # 안양·강화 중 본교 소재지입니다.
         self.assertIn('경기도',row['universities'][0]['candidate_regions'])
         self.assertNotEqual(row['universities'][0]['campus_status'],'unresolved')
         row=reclassify_article(dict(title='서울대·충남대 한곳에 모인 세종공동캠퍼스',body=''))
@@ -224,7 +224,7 @@ class FeedTests(unittest.TestCase):
         second=parse_feed(raw,'새로 추가한 임의 RSS')[0]
         self.assertEqual(first['regions'],['경남'])
         self.assertEqual(first['regions'],second['regions'])
-        self.assertEqual(first['classification_version'],7)
+        self.assertEqual(first['classification_version'],8)
 
     def test_appointment_excludes_alma_mater_location(self):
         row=reclassify_article(dict(title='신형걸 박사, 존스홉킨스 의대 조교수 임용…신경질환 정밀의학 연구 집중',
@@ -270,7 +270,7 @@ class FeedTests(unittest.TestCase):
                              ('국립경국대 고령친화 캠퍼스센터 개소','경북')]:
             self.assertEqual(reclassify_article(dict(title=title,body=''))['regions'],[region],title)
         row=reclassify_article(dict(title='인제대 현장캠퍼스 시민 개방',body=''))
-        self.assertEqual(row['regions'],[])  # 일반 표현을 실제 캠퍼스로 고르지 않습니다.
+        self.assertEqual(row['classification_method'],'main_campus_default')  # 일반 표현을 실제 캠퍼스로 고르지 않습니다.
         self.assertTrue(row['universities'][0]['candidate_regions'])
         self.assertNotEqual(row['universities'][0]['campus_status'],'unresolved')
 

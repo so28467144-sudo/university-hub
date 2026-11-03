@@ -15,7 +15,7 @@ class AddressMatchingTests(unittest.TestCase):
 
     def test_campus_overrides_multiple_locations(self):
         self.assertEqual(article('한양대 ERICA 연구 발표')['regions'],['경기도'])
-        self.assertEqual(article('한양대 연구 발표')['regions'],[])
+        self.assertEqual(article('한양대 연구 발표')['regions'],['서울'])
         self.assertEqual(article('경기도 한양대 연구 발표')['regions'],['경기도'])
 
     def test_conflict_is_reviewed_even_with_verified_campus(self):

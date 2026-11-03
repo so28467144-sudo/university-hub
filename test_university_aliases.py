@@ -33,7 +33,7 @@ class UniversityAliasTests(unittest.TestCase):
             candidates={r for u in row['universities'] for r in u.get('candidate_regions',u['regions'])}
             self.assertIn(region,candidates,alias)
             if len(candidates)==1:self.assertIn(region,row['regions'],alias)
-            else:self.assertEqual(row['regions'],[],alias)
+            else:self.assertEqual(row['classification_method'],'main_campus_default',alias)
 
     def test_ambiguous_short_alias_not_forced(self):
         self.assertGreater(len(ALIAS_CANDIDATES['외대']),1)

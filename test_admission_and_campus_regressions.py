@@ -93,11 +93,13 @@ class AdmissionAndCampusRegressionTests(unittest.TestCase):
             with self.subTest(title=title):self.assertEqual(reclassify_article(row('x',title))['regions'],[region])
 
     def test_campus_short_form_false_positive(self):
-        self.assertEqual(reclassify_article(row('x','건양대 메디컬캠프 프로그램'))['regions'],[])
+        self.assertEqual(reclassify_article(row('x','건양대 메디컬캠프 프로그램'))['regions'],['충남'])
 
-    def test_ambiguous_inje_and_konyang_remain_unknown(self):
-        for title in ['인제대 연구 발표','건양대 대학원 신입생 모집','인제대, 부산 기관과 협약','김해댕댕파크, 인제대 실습 거점으로']:
-            with self.subTest(title=title):self.assertEqual(reclassify_article(row('x',title))['regions'],[])
+    def test_main_campus_and_article_location_priority(self):
+        for title,region,method in [('인제대 연구 발표','경남','main_campus_default'),('건양대 대학원 신입생 모집','충남','main_campus_default'),('김해댕댕파크, 인제대 실습 거점으로','경남','main_campus_default')]:
+            with self.subTest(title=title):
+                result=reclassify_article(row('x',title))
+                self.assertEqual((result['regions'],result['classification_method']),([region],method))
 
     def test_verified_unit_with_punctuation(self):
         for title,region in [('인제대 임상병리학과 학술상 수상','경남'),('인제대, 대학일자리플러스센터 취업교육 개최','경남'),('건양대 의공학과 수상','대전')]:
@@ -111,10 +113,14 @@ class AdmissionAndCampusRegressionTests(unittest.TestCase):
         self.assertNotIn('용인대학교',item['school_names'])
         self.assertEqual(reclassify_article(row('x','용인 대학교 연구 발표'))['school_names'],['용인대학교'])
 
+    def test_other_campus_region_stays_for_review(self):
+        result=reclassify_article(row('x','인제대, 부산 기관과 협약'))
+        self.assertEqual((result['regions'],result['classification_method']),([],'review_required'))
+
     def test_former_campus_role_not_current_location(self):
         a=row('a','성균관대 총장 연임')
         a['body']='1994년 성균관대에 부임해 자연과학캠퍼스 부총장 겸 산학협력단장 등을 역임했다.'
-        self.assertEqual(reclassify_article(a)['regions'],[])
+        self.assertEqual(reclassify_article(a)['regions'],['서울'])
 
     def test_column_author_affiliation_is_not_subject_university(self):
         a=row('a','대학 행정에 묻다')

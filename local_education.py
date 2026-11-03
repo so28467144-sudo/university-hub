@@ -9,6 +9,7 @@ LOCALITIES = defaultdict(list)
 for record in DIRECTORY['records']:
     LOCALITIES[record['name']].append(record)
 PROGRAM = r'(?:농업(?:인)?|노인(?:지도자|복지)?|시민|군민|여성|박물관|평생학습|혁신)\s*대학'
+INSTITUTION = r'(?:의회|소방서|경찰서|교육지원청|보건소|역사박물관|상공회의소|상공회)'
 
 
 def select_locality(name, known_regions):
@@ -51,6 +52,10 @@ def local_education_context(title, summary='', known_regions=()):
         regional_universities=re.search(r'(?<![가-힣])'+re.escape(name[:-1])+r'(?:'+re.escape(name[-1])+r')?\s+(?:\d+\s*개\s*)?대학(?:\s|[,，·]|과|이|의|연합|교)',title)
         if name=='광주시' and '경기도' not in known_regions:regional_universities=None
         if regional_universities:add(record,regional_universities.group(),'title_region','시·군 명시 대학 연합·지원 문맥')
+        # 지자체 소속 기관이 제목 앞부분의 주체이면 관할 지역의 직접 근거입니다.
+        institution=re.search(r'(?<![가-힣])'+re.escape(name[:-1])+r'(?:'+re.escape(name[-1])+r')?\s*(?:[동서남북]부)?'+INSTITUTION,title[:30]) if len(name)>2 else None
+        if name=='광주시' and '경기도' not in known_regions:institution=None
+        if institution:add(record,institution.group(),'title_region','관할 지자체·공공기관')
         direct = re.search(re.escape(name[:-1])+r'\s*(?:'+re.escape(name[-1])+r'\s*)?'+PROGRAM,title)
         title_actor = False
         for match in re.finditer(r'(?<![가-힣])'+re.escape(name),title):

@@ -30,7 +30,17 @@ FACILITIES=[
          region='경기도',address='경기도 수원시 팔달구 중부대로 93',source='https://www.cmcvincent.or.kr/'),
     dict(name='단국대학교병원',school='단국대학교',aliases=['단국대학교병원','단국대병원'],
          region='충남',address='충청남도 천안시 동남구 망향로 201',source='https://www.dkuh.co.kr/mobile_2016/01/2025_dkuh_inpatient.pdf'),
-    dict(name='한양대학교구리병원',school='한양대학교',aliases=['한양대학교구리병원','한양대구리병원'],
+    dict(name='순천향대학교서울병원',school='순천향대학교',aliases=['순천향대학교부속서울병원','순천향대학교서울병원','순천향대서울병원'],
+         region='서울',address='서울특별시 용산구 대사관로 59',source='https://schmc.ac.kr/seoul/index.do'),
+    dict(name='순천향대학교부천병원',school='순천향대학교',aliases=['순천향대학교부속부천병원','순천향대학교부천병원','순천향대부천병원'],
+         region='경기도',address='경기도 부천시 원미구 조마루로 170',source='https://schmc.ac.kr/bucheon/index.do'),
+    dict(name='순천향대학교구미병원',school='순천향대학교',aliases=['순천향대학교부속구미병원','순천향대학교구미병원','순천향대구미병원'],
+         region='경북',address='경상북도 구미시 1공단로 179',source='https://schmc.ac.kr/gumi/index.do'),
+    dict(name='순천향대학교천안병원',school='순천향대학교',aliases=['순천향대학교부속천안병원','순천향대학교천안병원','순천향대천안병원'],
+         region='충남',address='충청남도 천안시 동남구 순천향6길 31',source='https://www.schmc.ac.kr/cheonan/contents.do?key=2886'),
+    dict(name='인제대학교부산백병원',school='인제대학교',aliases=['인제대학교부산백병원','인제대부산백병원','부산백병원'],
+         region='부산',address='부산광역시 부산진구 복지로 75',source='https://www.paik.ac.kr/busan/'),
+    dict(name='한양대학교구리병원',school='한양대학교',aliases=['한양대학교구리병원','한양대구리병원','한양대구리'],
          region='경기도',address='경기도 구리시 경춘로 153',source='https://guri.hyumc.com/search/search.do'),
     dict(name='고려대학교구로병원',school='고려대학교',aliases=['고려대학교구로병원','고려대구로병원','고대구로병원'],
          region='서울',address='서울특별시 구로구 구로동로 148',source='https://guro.kumc.or.kr/kr/service-guide/hospital-information/directions.do'),
@@ -60,6 +70,14 @@ def extract_facilities(text):
             for match in re.finditer(r'(?<![가-힣A-Za-z0-9])'+r'\s*'.join(map(re.escape,alias)),text):
                 if re.match(r'\s*분원',text[match.end():]):continue
                 candidates.append((match.start(),match.end(),record))
+                # '순천향대 서울병원·부천병원'처럼 같은 대학의 병원을 대학명 없이 이어 쓴 경우입니다.
+                position=match.end()
+                while (tail:=re.match(r'\s*[·,]\s*([가-힣]{1,6}병원)',text[position:])):
+                    sibling=next((r for r in FACILITIES if r['school']==record['school'] and r is not record
+                                  and r['name'].endswith(tail.group(1))),None)
+                    if sibling is None:break
+                    candidates.append((position+tail.start(1),position+tail.end(1),sibling))
+                    position+=tail.end()
     # 동일 구간은 가장 긴 기관명이 우선입니다. 같은 병원을 약칭/정식명으로 중복 등록하지 않습니다.
     spans=[]
     for start,end,record in sorted(candidates,key=lambda item:(-(item[1]-item[0]),item[0])):

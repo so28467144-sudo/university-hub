@@ -33,12 +33,12 @@ class RegionPriorityTests(unittest.TestCase):
     def test_campus_and_article_region_priority(self):
         self.assertEqual(classify('한양대 ERICA 연구 발표')['regions'],['경기도'])
         row=classify('한양대 연구 발표')
-        self.assertEqual(row['regions'],[])
+        self.assertEqual((row['regions'],row['classification_method']),(['서울'],'main_campus_default'))
         self.assertEqual(row['universities'][0]['candidate_regions'],['경기도','서울'])
         row=classify('경기도 한양대 연구 발표')
         self.assertEqual(row['universities'][0]['regions'],['경기도'])
         self.assertEqual(row['universities'][0]['region_resolution'],'article_address_intersection')
-        row=classify('한양대 알수없는캠퍼스 연구 발표')
+        row=classify('한양대 알수없음캠퍼스 연구 발표')
         self.assertEqual(row['regions'],[])
         self.assertEqual(row['universities'][0]['addresses'],[])
         row=classify('조지메이슨대학교 한국캠퍼스 교육기술 수상')
@@ -66,7 +66,7 @@ class RegionPriorityTests(unittest.TestCase):
     def test_diagnostics_distinguish_uncertainty(self):
         cases=[('새봄대학교 연구 발표','대학 주소록 미등록'),
                ('외대 연구 발표','대학명 중복 또는 모호함'),
-               ('한양대 연구 발표','캠퍼스 특정 불가')]
+               ('을지대의료원 심포지엄','캠퍼스 특정 불가')]
         for title,reason in cases:self.assertIn(reason,diagnose_article(classify(title))['failure_reasons'])
         row=classify('숭실대·서울대 공동연구 협약')
         self.assertIn('기사에 여러 대학 등장',diagnose_article(row)['review_reasons'])

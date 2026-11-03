@@ -24,7 +24,7 @@ from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
 from classification_monitor import build_report
 from rss_summaries import select_summary, preserve_summary, USEFUL_KINDS
-from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill
+from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill, verified_campus_correction
 
 
 class PlainText(HTMLParser):
@@ -262,14 +262,15 @@ class Collector:
                 if proposed is None:
                     proposed = reclassify_article(dict(raw_item, **raw_item.get('pending_update', {})))
                 review = region_review(old, proposed)
-                if review and verified_unknown_fill(old,proposed):
+                correction=bool(review) and verified_campus_correction(old,proposed)
+                if review and (correction or verified_unknown_fill(old,proposed)):
                     confirmed=reclassify_article(old)
                     # Original raw and all non-classification fields stay intact.
                     fields=('school','school_names','school_aliases','regions','region','city','universities',
-                            'mentioned_regions','classification_status','classification_version',
+                            'mentioned_regions','classification_status','classification_version','classification_method',
                             'background_universities','conflicting_region_evidence','region_review_reasons')
                     public_by_id[old['id']].update({key:confirmed[key] for key in fields if key in confirmed})
-                    review.update(decision='verified_unknown_region_fill',automatic_change_applied=True,
+                    review.update(decision='verified_campus_correction' if correction else 'verified_unknown_region_fill',automatic_change_applied=True,
                                   published_regions=confirmed['regions'],proposed_evidence=confirmed['universities'])
                 if review: self.region_change_reviews.append(review)
             new_ids = set(merged)-known_ids

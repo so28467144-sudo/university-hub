@@ -21,7 +21,7 @@ class RegionRegressionTests(unittest.TestCase):
         self.assertEqual(row['regions'],['전북'])
         self.assertIn('event_venue',{p['role'] for p in row['mentioned_regions']})
         row=classify('한양대 포럼 개최','포럼은 서울에서 개최된다.')
-        self.assertEqual(row['regions'],[])
+        self.assertEqual(row['regions'],['서울'])
 
     def test_multiple_school_location_is_scoped(self):
         row=classify('경기도 한양대와 연세대 공동연구')
@@ -47,7 +47,7 @@ class RegionRegressionTests(unittest.TestCase):
     def test_supplemented_campuses_are_not_assumed(self):
         self.assertEqual(classify('부산가톨릭대 하하캠퍼스 행사')['regions'],['부산'])
         self.assertEqual(classify('성균관대 자연과학캠퍼스 행사')['regions'],['경기도'])
-        self.assertEqual(classify('성균관대 연구 발표')['regions'],[])
+        self.assertEqual(classify('성균관대 연구 발표')['regions'],['서울'])
 
     def test_ellipsis_preserves_foreign_context(self):
         self.assertEqual(classify('경제난 중국, 지원금 축소…대학들 허리띠 졸라맨다')['regions'],['해외'])
@@ -57,7 +57,7 @@ class RegionRegressionTests(unittest.TestCase):
         row=classify('경북 기관, 부산가톨릭대학교와 협약')
         broken=deepcopy(row);broken['regions']=['경북']
         self.assertIn('region_evidence_mismatch',inspect_article(broken)[0])
-        row=classify('한양대 연구 발표');row['universities'][0]['regions']=['서울'];row['regions']=['서울']
+        row=classify('을지대의료원 심포지엄');row['universities'][0]['regions']=['대전'];row['regions']=['대전']
         self.assertIn('ambiguous_campus_assigned_region',inspect_article(row)[0])
 
 

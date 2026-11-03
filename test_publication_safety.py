@@ -59,15 +59,24 @@ class PublicationPreservationTests(unittest.TestCase):
             self.assertEqual(new['regions'],['충남'])
             self.assertEqual(next(x for x in payload['news'] if x['id']=='a')['regions'],article()['regions'])
 
-    def test_verified_correction_is_review_candidate_not_automatic(self):
+    def test_official_hospital_address_corrects_school_level_region(self):
         with TemporaryDirectory() as directory:
             root=Path(directory);old=article();old.update(title='분당서울대병원 연구 발표',body='',regions=['서울'])
             (root/'news.json').write_text(json.dumps(dict(news=[old],status={})),encoding='utf-8')
             payload=mock_run(root)
-            self.assertEqual(payload['news'][0]['regions'],['서울'])
+            self.assertEqual(payload['news'][0]['regions'],['경기도'])
             review=payload['region_change_reviews'][0]
-            self.assertEqual(review['proposed_regions'],['경기도'])
-            self.assertEqual(review['decision'],'verified_correction_candidate')
+            self.assertEqual((review['proposed_regions'],review['decision'],review['automatic_change_applied']),(['경기도'],'verified_campus_correction',True))
+            self.assertEqual({k:payload['news'][0][k] for k in ('id','title','url','original_url','date','body')},
+                             {k:old[k] for k in ('id','title','url','original_url','date','body')})
+
+    def test_region_written_in_article_is_not_corrected(self):
+        with TemporaryDirectory() as directory:
+            root=Path(directory);old=article();old.update(title='서울 기관, 분당서울대병원과 연구 발표',body='',regions=['서울'])
+            (root/'news.json').write_text(json.dumps(dict(news=[old],status={})),encoding='utf-8')
+            payload=mock_run(root)
+            self.assertEqual(payload['news'][0]['regions'],['서울'])
+            self.assertFalse(any(r['automatic_change_applied'] for r in payload['region_change_reviews']))
 
     def test_guard_detects_region_raw_identity_and_alias_loss(self):
         old=article()
