@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import datetime,timezone
 import re
 
-REGIONS={'서울','부산','대구','인천','광주','대전','울산','세종','경기도','강원','충북','충남','전북','전남','경북','경남','제주','해외'}
+REGIONS={'서울','부산','대구','인천','광주','대전','울산','세종','경기도','강원','충북','충남','전북','전남','경북','경남','제주','전국','해외'}
 CATEGORIES={'입시·모집','연구·성과','행사·특강','장학·지원','캠퍼스','대학 소식'}
 GENERAL={'국내대학','지역대학','지방대학','전문대학','국립대학','국립대학교','사립대학','세계대학','우리대학','공동대학','공유대학','일반대학','해외대학','선도대학','지원대학','년제대학'}
 
@@ -22,6 +22,9 @@ def inspect_article(item):
                 errors.append('university_region_outside_candidates')
             if university.get('region_resolution')=='campus_unspecified' and university.get('regions'):
                 errors.append('ambiguous_campus_assigned_region')
+            # 추정 분류는 확인된 캠퍼스 지역을 하나도 빠뜨리지 않아야 합니다.
+            if university.get('region_resolution')=='campus_candidates' and set(university.get('regions',[]))!=set(university.get('candidate_regions',[])):
+                errors.append('estimated_regions_incomplete')
     else:
         expected=university_regions|{p['region'] for p in mentioned}
     if regions!=expected:errors.append('region_evidence_mismatch')

@@ -24,7 +24,7 @@ from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
 from classification_monitor import build_report
 from rss_summaries import select_summary, preserve_summary, USEFUL_KINDS
-from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill, verified_campus_correction
+from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill, verified_campus_correction, estimate_policy_update
 
 
 class PlainText(HTMLParser):
@@ -263,16 +263,21 @@ class Collector:
                     proposed = reclassify_article(dict(raw_item, **raw_item.get('pending_update', {})))
                 review = region_review(old, proposed)
                 correction=bool(review) and verified_campus_correction(old,proposed)
-                if review and (correction or verified_unknown_fill(old,proposed)):
+                widened=bool(review) and not correction and estimate_policy_update(old,proposed)
+                if review and (correction or widened or verified_unknown_fill(old,proposed)):
                     confirmed=reclassify_article(old)
                     # Original raw and all non-classification fields stay intact.
                     fields=('school','school_names','school_aliases','regions','region','city','universities',
-                            'mentioned_regions','classification_status','classification_version','classification_method',
+                            'mentioned_regions','classification_status','classification_version','classification_method','classification_confidence',
                             'background_universities','conflicting_region_evidence','region_review_reasons')
                     public_by_id[old['id']].update({key:confirmed[key] for key in fields if key in confirmed})
-                    review.update(decision='verified_campus_correction' if correction else 'verified_unknown_region_fill',automatic_change_applied=True,
+                    review.update(decision='verified_campus_correction' if correction else 'estimate_policy_update' if widened else 'verified_unknown_region_fill',automatic_change_applied=True,
                                   published_regions=confirmed['regions'],proposed_evidence=confirmed['universities'])
                 if review: self.region_change_reviews.append(review)
+                # 지자체 교육과정 이름이 대학명 칸에 남은 기존 기사는 대학명만 바로잡습니다.
+                programs=' · '.join(p['name'] for p in old.get('education_programs',[]))
+                if programs and old.get('school')==programs and not old.get('school_names') and proposed.get('school')=='대학명 미확인':
+                    public_by_id[old['id']]['school']='대학명 미확인'
             new_ids = set(merged)-known_ids
             unique_news = deduplicate_preserving_links(raw_news)
             additions = []

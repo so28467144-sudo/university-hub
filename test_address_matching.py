@@ -15,7 +15,7 @@ class AddressMatchingTests(unittest.TestCase):
 
     def test_campus_overrides_multiple_locations(self):
         self.assertEqual(article('한양대 ERICA 연구 발표')['regions'],['경기도'])
-        self.assertEqual(article('한양대 연구 발표')['regions'],['서울'])
+        self.assertEqual(article('한양대 연구 발표')['regions'],['경기도','서울'])
         self.assertEqual(article('경기도 한양대 연구 발표')['regions'],['경기도'])
 
     def test_conflict_is_reviewed_even_with_verified_campus(self):
@@ -33,7 +33,7 @@ class AddressMatchingTests(unittest.TestCase):
     def test_missing_and_unknown_address(self):
         row=article('한국폴리텍대학 장학금 기탁')
         self.assertIn('한국폴리텍대학',row['address_missing_names'])
-        self.assertEqual(row['regions'],[])
+        self.assertEqual((row['regions'],row['classification_method']),(['전국'],'national_scope'))
         self.assertIn('새봄대학교',diagnose_article(article('새봄대학교 연구 발표'))['additional_confirmation_names'])
 
     def test_existing_unique_and_hospital_locations(self):

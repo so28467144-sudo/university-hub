@@ -15,7 +15,7 @@ const inRegion=(n,region)=>{
  return region==='지역 미분류'?assigned.length===0:assigned.includes(region);
 };
 // 소식 데이터 유무와 관계없이 모든 시·도 버튼을 표시합니다.
-const regions = ['전체 지역', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기도', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '해외', '지역 미분류'];
+const regions = ['전체 지역', '서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기도', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주', '전국', '해외', '지역 미분류'];
 let saved=new Set();try{const value=JSON.parse(localStorage.getItem('campus-on-saved')||'[]');if(Array.isArray(value))saved=new Set(value.filter(x=>typeof x==='string'));}catch{}
 const isArticleSaved=article=>(article.duplicate_ids||[article.id]).some(id=>saved.has(id));
 function selectPublicRepresentatives(rows,groups=[]){
@@ -103,7 +103,7 @@ function showUniversityAddresses(article){
  const heading=document.createElement('strong');heading.textContent='대학 · 캠퍼스 소재지 확인';box.append(heading);
  for(const university of article.universities){
  const p=document.createElement('p');
- const status=university.region_resolution==='main_campus_default'?'기사에 캠퍼스가 명시되지 않아 본교 소재지 기준으로 분류했습니다.':university.method==='national_network'?'대학명은 확인했지만 기사에 캠퍼스가 명시되지 않아 지역을 특정하지 못했습니다.':university.affiliation_type==='university_hospital'?`확인된 대학 부속기관: ${university.campus_names.join(' / ')}`:university.campus_status==='matched'?`확인된 캠퍼스: ${university.campus_names.join(' / ')}`:university.campus_status==='region_only'?`캠퍼스 지역 확인: ${university.campus_names.join(' / ')} (시·군·구만 확인, 상세 주소 미확인)`:university.campus_status==='unresolved'?`주소 미확인: ${university.campus_names.join(' / ')} (본교 주소로 대체하지 않습니다)`:'기사에서 캠퍼스를 특정하지 못했습니다. 아래는 등록된 소재지 후보입니다.';
+ const status=university.region_resolution==='campus_candidates'?'기사에 캠퍼스가 명시되지 않아 확인된 캠퍼스 소재 지역을 모두 표시합니다(추정 분류).':university.region_resolution==='national_network'?'캠퍼스가 명시되지 않은 전국 단위 기사입니다.':university.region_resolution==='main_campus_default'?'기사에 캠퍼스가 명시되지 않아 본교 소재지 기준으로 분류했습니다.':university.method==='national_network'?'대학명은 확인했지만 기사에 캠퍼스가 명시되지 않아 지역을 특정하지 못했습니다.':university.affiliation_type==='university_hospital'?`확인된 대학 부속기관: ${university.campus_names.join(' / ')}`:university.campus_status==='matched'?`확인된 캠퍼스: ${university.campus_names.join(' / ')}`:university.campus_status==='region_only'?`캠퍼스 지역 확인: ${university.campus_names.join(' / ')} (시·군·구만 확인, 상세 주소 미확인)`:university.campus_status==='unresolved'?`주소 미확인: ${university.campus_names.join(' / ')} (본교 주소로 대체하지 않습니다)`:'기사에서 캠퍼스를 특정하지 못했습니다. 아래는 등록된 소재지 후보입니다.';
  p.textContent=`${university.name} · ${university.regions.join(' / ')||'지역 미분류'}\n${status}`;
  box.append(p);
  if(university.campuses?.length){

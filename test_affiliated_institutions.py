@@ -53,7 +53,7 @@ class AffiliatedInstitutionTests(unittest.TestCase):
 
     def test_regular_campus_classification_is_unchanged(self):
         self.assertEqual(classify('고려대 세종캠퍼스 연구')['regions'],['세종'])
-        self.assertEqual(classify('고려대 연구')['regions'],['서울'])
+        self.assertEqual(classify('고려대 연구')['regions'],['서울','세종'])
         self.assertEqual(classify('한양대 ERICA 연구')['regions'],['경기도'])
 
 

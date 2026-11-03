@@ -63,7 +63,7 @@ def local_education_context(title, summary='', known_regions=()):
             participant = re.match(r'\s*(?:출신|거주|에서\s*온|참가자)',suffix)
             if participant:
                 continue
-            actor = match.start()<25 and re.match(r'(?:청)?\s*(?:[,，]|은\b|는\b|수(?:가|는)?(?:\s|[,，]))',suffix)
+            actor = match.start()<25 and re.match(r'(?:청)?\s*(?:[,，·ㆍ\-]|은\b|는\b|수(?:가|는)?(?:\s|[,，]))',suffix)
             if not actor and match.start()<25:
                 actor=re.match(r'\s+[가-힣\s]{0,18}(?:장학재단|교육재단|문화재단|평생학습관)',suffix)
             venue = re.match(r'(?:에서|서)\s*.{0,35}(?:열리|열린|개최|개막|진행)',suffix)

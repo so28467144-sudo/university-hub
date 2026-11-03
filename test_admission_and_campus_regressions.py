@@ -93,13 +93,13 @@ class AdmissionAndCampusRegressionTests(unittest.TestCase):
             with self.subTest(title=title):self.assertEqual(reclassify_article(row('x',title))['regions'],[region])
 
     def test_campus_short_form_false_positive(self):
-        self.assertEqual(reclassify_article(row('x','건양대 메디컬캠프 프로그램'))['regions'],['충남'])
+        self.assertEqual(reclassify_article(row('x','건양대 메디컬캠프 프로그램'))['classification_method'],'multi_campus_estimate')
 
     def test_main_campus_and_article_location_priority(self):
-        for title,region,method in [('인제대 연구 발표','경남','main_campus_default'),('건양대 대학원 신입생 모집','충남','main_campus_default'),('김해댕댕파크, 인제대 실습 거점으로','경남','main_campus_default')]:
+        for title,regions in [('인제대 연구 발표',['경남','부산']),('건양대 대학원 신입생 모집',['대전','충남']),('김해댕댕파크, 인제대 실습 거점으로',['경남','부산'])]:
             with self.subTest(title=title):
                 result=reclassify_article(row('x',title))
-                self.assertEqual((result['regions'],result['classification_method']),([region],method))
+                self.assertEqual((result['regions'],result['classification_method'],result['classification_confidence']),(regions,'multi_campus_estimate','estimated'))
 
     def test_verified_unit_with_punctuation(self):
         for title,region in [('인제대 임상병리학과 학술상 수상','경남'),('인제대, 대학일자리플러스센터 취업교육 개최','경남'),('건양대 의공학과 수상','대전')]:
@@ -114,13 +114,14 @@ class AdmissionAndCampusRegressionTests(unittest.TestCase):
         self.assertEqual(reclassify_article(row('x','용인 대학교 연구 발표'))['school_names'],['용인대학교'])
 
     def test_other_campus_region_stays_for_review(self):
+        # 협력 기관 소재지는 캠퍼스를 확정하지 않으므로 확인된 캠퍼스 지역을 모두 둡니다.
         result=reclassify_article(row('x','인제대, 부산 기관과 협약'))
-        self.assertEqual((result['regions'],result['classification_method']),([],'review_required'))
+        self.assertEqual((result['regions'],result['classification_method']),(['경남','부산'],'multi_campus_estimate'))
 
     def test_former_campus_role_not_current_location(self):
         a=row('a','성균관대 총장 연임')
         a['body']='1994년 성균관대에 부임해 자연과학캠퍼스 부총장 겸 산학협력단장 등을 역임했다.'
-        self.assertEqual(reclassify_article(a)['regions'],['서울'])
+        self.assertEqual(reclassify_article(a)['classification_method'],'multi_campus_estimate')
 
     def test_column_author_affiliation_is_not_subject_university(self):
         a=row('a','대학 행정에 묻다')

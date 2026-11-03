@@ -20,9 +20,11 @@ PRESS_MIN_TITLE_SHARE = .4
 PRESS_LONG_GAP_TITLE_SHARE = .6
 PRESS_DISTINCT_TAIL = 3
 PRESS_GENERIC = STOP|{'교수','교수팀','연구팀','연구','학생','학생들','재학생','총장','부총장','센터','사업단','행사','프로그램',
-                      '교육','협약','체결','선정','수상','기념','모집','참여','확대','신설','취임','임명','머니투데이'}
+                      '교육','협약','체결','선정','수상','기념','모집','참여','확대','신설','취임','임명','머니투데이',
+                      '손잡고','손잡아','손잡','맞손','맞힘','나서','나선다','나섰다','연계','협력','함께','앞장','본격','돕는다'}
 PHASE_BEFORE = r'예정|연다|열린다|개최한다|앞두고|내달|다음달|오는\d+일|참가자모집|신청접수'
 PHASE_AFTER = r'성료|마쳐|마무리|폐막|성황리|열려|열었다|개최했|진행했|배출|수료|마감했'
+ORGANIZATION_SUFFIX = r'(?:상의|상공회의소|상공회|의회|시청|군청|구청|도청|교육청|교육지원청|재단|진흥원|공사|공단|협회|센터|연구원|의료원|소방서|경찰서|농협|청)'
 NEW_FACT_WORDS = r'후속|추가|2차|재개|번복|해명|반박|논란|의혹|수사|고발|소송|징계|합격|결과|취소|철회|연기|사과|입장문'
 
 
@@ -326,6 +328,11 @@ def confirmed_deduplicate(items):
     return sorted(result,key=lambda n:n.get('date',''),reverse=True)
 
 
+def story_actions(title):
+    compact=re.sub(r'\s+','',title)
+    return {word for word in ('취소','철회','반박','후속','연기','모집','추가모집','수상','협약','결과발표','결과공개','마감') if word in compact}
+
+
 def story_phase(title):
     compact=re.sub(r'\s+','',title)
     if re.search(PHASE_AFTER,compact):return 'after'
@@ -333,11 +340,20 @@ def story_phase(title):
     return ''
 
 
+def subject_organization(item):
+    """'대전상의, …'처럼 제목 첫머리에서 주체로 쓰인 기관명."""
+    title=re.sub(r'^\s*\[[^\]]*\]\s*','',normalize(item['title']))
+    match=re.match(r'([가-힣a-z0-9]{1,14}'+ORGANIZATION_SUFFIX+r')(?=[\s,·ㆍ\-]|$)',title)
+    return match.group(1) if match else ''
+
+
 def distinctive_terms(item):
-    """대학명과 흔한 직함·사업어를 뺀, 사건을 구별하는 제목 단어."""
+    """대학명·주체 기관명과 흔한 직함·사업어를 뺀, 사건을 구별하는 제목 단어."""
     schools=item.get('school_names') or item.get('school','').split(' · ')
-    names={re.sub(r'\W','',normalize(n)) for n in schools}
-    return {t for t in tokens(item) if t not in PRESS_GENERIC and not any(t.startswith(n) for n in names if n)}
+    names={re.sub(r'\W','',normalize(n)) for n in schools}|{subject_organization(item)}
+    # '지역대학과'와 '지역대학'은 같은 단어입니다. 조사를 떼고 비교합니다.
+    stems={re.sub(r'(?<=..)(?:과|와|을|를|은|는|이|가|의|에|에서|으로|로)$','',t) for t in tokens(item)}
+    return {t for t in stems if t not in PRESS_GENERIC and not any(t.startswith(n) for n in names if n)}
 
 
 def press_same_story(first,second):
@@ -345,12 +361,16 @@ def press_same_story(first,second):
     if any(automatic_merge_exclusion(x) for x in (first,second)):return False
     if not first.get('date') or not second.get('date'):return False
     schools=lambda n:set(n.get('school_names') or [])
-    if not schools(first) or schools(first)!=schools(second):return False
+    if schools(first)!=schools(second):return False
+    # 대학명이 없으면 제목 첫머리의 같은 기관이 같은 사건의 주체여야 합니다.
+    organization=subject_organization(first)
+    if not schools(first) and (not organization or organization!=subject_organization(second)):return False
     # 숨긴 기사만 가진 지역·유형이 생기면 필터 결과가 사라집니다.
     if set(first.get('regions') or [])!=set(second.get('regions') or []):return False
     if not first.get('regions') or first.get('category')!=second.get('category'):return False
     if abs((datetime.fromisoformat(first['date'])-datetime.fromisoformat(second['date'])).total_seconds())>PRESS_WINDOW_HOURS*3600:return False
-    if not same_story(first,second):return False
+    if schools(first) and not same_story(first,second):return False
+    if not schools(first) and story_actions(first['title'])!=story_actions(second['title']):return False
     # 모집 기사는 양쪽 모두 학년도가 명시되어야 같은 전형으로 봅니다.
     identities=[admission_identity(x) for x in (first,second)]
     if any(identities) and not all(i and i['year'] and not i['year_inferred'] for i in identities):return False
@@ -411,9 +431,22 @@ def public_story_groups(items):
     by_id={x['id']:x for x in items}
     for row in deduplicate(items):
         if row['duplicate_count']<2:continue
-        members=[by_id[i] for i in row['duplicate_ids'] if i in by_id and i not in claimed]
+        # 대학명이 없는 기사는 아래에서 같은 주체 기관끼리 따로 비교합니다.
+        members=[by_id[i] for i in row['duplicate_ids'] if i in by_id and i not in claimed and by_id[i].get('school_names')]
         for part in press_partitions(members):
             if len(part)<2:continue
             groups.append(dict(version=5,representative_id=max(part,key=quality)['id'],article_ids=sorted(x['id'] for x in part),
                                basis='same event across publishers'))
+    # 대학명이 없는 기사는 같은 주체 기관·지역끼리만 비교합니다.
+    claimed={i for group in groups for i in group['article_ids']}
+    buckets=defaultdict(list)
+    for item in items:
+        organization=subject_organization(item)
+        if item['id'] in claimed or item.get('school_names') or not organization or not item.get('regions'):continue
+        buckets[(organization,tuple(sorted(item['regions'])))].append(item)
+    for rows in buckets.values():
+        for part in press_partitions(rows) if len(rows)>1 else []:
+            if len(part)<2:continue
+            groups.append(dict(version=5,representative_id=max(part,key=quality)['id'],article_ids=sorted(x['id'] for x in part),
+                               basis='same event and institution without a university name'))
     return groups

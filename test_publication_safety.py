@@ -43,7 +43,8 @@ class PublicationPreservationTests(unittest.TestCase):
                 for before,after in zip(original,payload['news']):
                     for key in ('id','title','url','original_url','date','body','regions'):
                         self.assertEqual(after[key],before[key])
-                self.assertTrue(payload['region_change_reviews'])
+                # 기존 지역이 새 규칙의 결과와 같으면 검토 기록이 생기지 않습니다.
+                self.assertEqual(payload['region_change_reviews'],[])
                 self.assertTrue(all(not r['automatic_change_applied'] for r in payload['region_change_reviews']))
                 report=json.loads((root/'classification_diagnostics.json').read_bytes())
                 self.assertEqual(report['region_change_reviews'],payload['region_change_reviews'])

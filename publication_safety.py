@@ -21,8 +21,19 @@ def verified_unknown_fill(previous, proposed):
         titled={p['region'] for p in decision.get('mentioned_regions',[]) if p.get('method')=='title_region'}
         return not decision.get('foreign_universities') and '해외' not in decision['regions'] and set(decision['regions'])<=titled
     return all(
+        u.get('region_resolution')=='national_network' and u.get('regions')==['전국'] or
         u.get('addresses') and u.get('source') and u.get('regions') and u.get('region_resolution') in
-        ('verified_campus','unique_verified_location','article_address_intersection','campus_place_match','main_campus_default') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
+        ('verified_campus','unique_verified_location','article_address_intersection','campus_place_match','campus_candidates') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
+
+
+def estimate_policy_update(previous, proposed):
+    """본교 기준으로 추정했던 기사만 확인된 캠퍼스 지역 전체로 넓힙니다. 기존 지역은 지우지 않습니다."""
+    if previous.get('classification_method')!='main_campus_default' or not previous.get('regions'):return False
+    from university_regions import reclassify_article
+    decision=reclassify_article(previous)
+    new=set(decision['regions'])
+    return (decision.get('classification_method')=='multi_campus_estimate' and new==set(proposed.get('regions') or [])
+            and set(previous['regions'])<=new and not decision.get('conflicting_region_evidence'))
 
 
 def verified_campus_correction(previous, proposed):
@@ -133,6 +144,6 @@ def publication_errors(previous_news, previous_raw, news, raw, new_ids=()):
                 add(label+'_duplicate_links_lost', [article_id])
             if assess_summary(a.get('body', ''), a.get('title', ''))[0] in USEFUL_KINDS and a.get('body') != b.get('body'):
                 add(label+'_useful_summary_lost', [article_id])
-            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b) and not verified_campus_correction(a,b):
+            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b) and not verified_campus_correction(a,b) and not estimate_policy_update(a,b):
                 add('unapproved_existing_region_change', [article_id])
     return errors
