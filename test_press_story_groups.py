@@ -268,6 +268,46 @@ class EventRefinementTests(unittest.TestCase):
         self.assertFalse(automatic_merge_exclusion(dict(title='청주대, 우리 동네 영화관 개최(종합)')))
 
 
+class GeneralArticleGroupingTests(unittest.TestCase):
+    """대학명도 첫머리 기관도 없는 일반 기사끼리의 같은 주제 묶음."""
+    def general(self,ident,title,date='2026-11-04T01:00:00+00:00',source=None):
+        return dict(id=ident,title=title,source=source or ident,date=date,school='대학명 미확인',school_names=[],regions=[],
+                    region='',category='행사·특강',body='',url='https://example.org/'+ident)
+
+    def groups(self,rows):
+        return [sorted(g['article_ids']) for g in public_story_groups(rows) if g['version']==7]
+
+    def test_same_named_event_groups_even_when_shortened(self):
+        rows=[self.general('a','대전시, 2026 대학만화웹툰대전·웹툰채용박람회 개최'),
+              self.general('b','대학만화웹툰대전 & 웹툰채용박람회 개최',date='2026-11-04T02:00:00+00:00'),
+              self.general('c','대학생·신진작가 웹툰산업 진출 지원…전국 웹툰대전 개최',date='2026-11-04T03:00:00+00:00')]
+        self.assertEqual(self.groups(rows),[['a','b','c']])
+
+    def test_same_kind_event_in_different_places_stays_separate(self):
+        for first,second in (('담양군, 제19기 농업인대학 졸업식 개최','진주시, 2026년도 농업인대학 졸업식 개최'),
+                             ('(재)상주시장학회, 2028학년도 대학 입시설명회 개최','송파구, 고1·2 학부모 대상 대학입시설명회 개최'),
+                             ('대한적십자사 강원지사, 대학RCY 캠프 성료','적십자사 울산지사-대학RCY, 봉사자 나눔')):
+            with self.subTest(first=first):
+                self.assertEqual(self.groups([self.general('a',first),self.general('b',second)]),[])
+
+    def test_place_names_short_overlaps_and_notices_are_not_evidence(self):
+        for first,second in (('인천시·인천TP, 대학 출신 창업기업 투자유치 지원','인천시립박물관, 박물관대학 세 번째 강의'),
+                             ('AI에 맡길 일 아는 관리자, 더 나은 대학 행정 만든다','전국대학평생교육원관리자협, 하반기 세미나'),
+                             ('이상일 용인시장, 이탈리아 기업 캠퍼스 방문','이탈리아서 열린 미국 대학 농구 교황 더비'),
+                             ('[알립니다] 제18회 한국대학신문 대학직원대상 공모','한림학보사, 2026 대학신문 생명존중 기사공모전 우수상'),
+                             ('한국대학신문 대학직원대상 후보 추천','한국대학바둑연맹 소속 대학생, 기념관 방문')):
+            with self.subTest(first=first):
+                self.assertEqual(self.groups([self.general('a',first),self.general('b',second)]),[])
+
+    def test_general_articles_do_not_change_university_rarity(self):
+        # 일반 기사에 같은 말이 나와도 대학 기사 고유어가 흔한 말로 바뀌지 않습니다.
+        school=[report('a','대구가톨릭대, 대구·경북 대학페스타 2년 연속 종합우승',school='대구가톨릭대학교'),
+                report('b','대구가톨릭대, 대학페스타 2년 연속 정상…우승 상금 기부',source='B',school='대구가톨릭대학교')]
+        others=[self.general('g%d'%n,'동성로서 2026 대구·경북 대학페스타 개최 %d'%n) for n in range(3)]
+        groups=[sorted(g['article_ids']) for g in public_story_groups(school+others) if set(g['article_ids'])&{'a','b'}]
+        self.assertEqual(groups,[['a','b']])
+
+
 class IdenticalTitleRefinementTests(unittest.TestCase):
     def test_hyphen_inside_title_is_not_a_publisher_tail(self):
         from article_dedup import title_identity

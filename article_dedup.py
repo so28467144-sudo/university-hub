@@ -42,13 +42,20 @@ EVENT_SUPPORT_MAX_OWNERS = 10
 EVENT_TOPIC_MIN_ARTICLES = 4
 CANDIDATE_HIGH_RISK = {'different people','new-fact word differs','incident reported on one side only','announcement vs result',
                        'conflicting numbers','different event types','different hospitals','different campuses',
-                       'admission identity uncertain','summary lacks shared entity'}
+                       'admission identity uncertain','summary lacks shared entity','different places'}
 # 돌발 사건 낱말의 갈래. 같은 갈래의 낱말('체포'·'입건')은 같은 사건을 다르게 쓴 것입니다.
 EVENT_INCIDENT_FAMILIES = {'police':('입건','체포','구속','검거'),'harm':('부상','사고','사망','숨져','숨진','별세','추락','붕괴','화재','폭행','실종'),
                            'medical':('확진','입원','수술'),'security':('유출','해킹')}
 PLACE_NAMES = set(LOCALITIES)|{'경기도','강원도','충청남도','충청북도','전라남도','전라북도','경상남도','경상북도','제주도'}
+# '인천시'·'경남도'·'부산광역시'처럼 시·도 이름도 장소입니다.
+PLACE_NAMES |= {short+suffix for short in ('서울','부산','대구','인천','광주','대전','울산','세종','경기','강원','충북','충남','전북','전남','경북','경남','제주')
+                for suffix in ('시','도','광역시','특별시','특별자치시','특별자치도')}
 # 따옴표 비교 대상인 행사·과정 이름의 끝말입니다.
 EVENT_NAME_WORDS = r'축제|페스티벌|포럼|대회|공모전|박람회|캠프|과정|프로그램|전시|콘서트|음악회|세미나|심포지엄|학술대회|아카데미|챌린지'
+# 대학명도 첫머리 기관도 없는 일반 기사의 비교 묶음입니다.
+GENERAL_OWNER = ('@일반 기사',)
+PROVINCE_SHORT = {'서울':'서울','부산':'부산','대구':'대구','인천':'인천','광주':'광주','대전':'대전','울산':'울산','세종':'세종',
+                  '경기':'경기도','강원':'강원','충북':'충북','충남':'충남','전북':'전북','전남':'전남','경북':'경북','경남':'경남','제주':'제주'}
 PERSON_TITLE_MODIFIERS = {'석좌','차기','신임','전임','현직','명예','초빙','겸임','특임','정년','부총리','자유와','대표','공동','초대','역대'}
 PERSON_TITLE = r'(?:의원|시의원|도의원|교수|총장|장관|차관|회장|원장|이사장|씨|작가|기자|박사|소장|단장|군수|구청장|교육감)'
 EVENT_ENTITY_GENERIC = {'대학원','대학생','신입생','재학생','졸업생','유학생','교직원','연구진','연구자','연구소','연구단','연구원',
@@ -332,12 +339,13 @@ def deduplicate(items):
 
 def automatic_merge_exclusion(item):
     """Related coverage and multi-story digests must remain individually visible."""
+    # '[알립니다]'·'[공지]'는 언론사 자체 공지입니다.
     # '… 외 (10월29일 종합)'은 여러 소식을 모은 기사입니다. 연합뉴스의 '(종합)' 갱신 기사는 해당하지 않습니다.
     # 짧은 낱말은 단어 첫머리에서만 찾습니다. '박사과정'의 '사과', '교사의'의 '사의'는 해당하지 않습니다.
     return bool(re.search(
         r'칼럼|(?<![가-힣])축사|인터뷰|(?<![가-힣])후속|(?<![가-힣])사설|(?<![가-힣])기고|논평|(?<![가-힣])사직|(?<![가-힣])사의|압수수색|(?<![가-힣])사과|'
         r'브리핑|소식\]|교육소식|이모저모|모음|특별기획|外|\b24시\b|'
-        r'참석.*축사|창간|교수의\s*눈|\s외\s*[(（]|\d+일\s*종합\)', item.get('title',''), re.I))
+        r'참석.*축사|창간|교수의\s*눈|\s외\s*[(（]|\d+일\s*종합\)|^\s*\[(?:알립니다|공지)\]', item.get('title',''), re.I))
 
 
 def confirmed_same_story(first,second):
@@ -500,11 +508,39 @@ def press_partitions(rows):
 
 
 def story_owner(item):
-    """같은 사건을 비교할 주체: 대학명 집합, 대학명이 없으면 제목 첫머리 기관."""
+    """같은 사건을 비교할 주체: 대학명 집합, 대학명이 없으면 제목 첫머리 기관, 둘 다 없으면 일반 기사 묶음.
+
+    일반 기사('대학만화웹툰대전 개최')도 같은 행사·사업 고유어를 공유하면 같은 사건으로 비교합니다.
+    """
     schools=tuple(sorted(item.get('school_names') or []))
     if schools:return schools
     organization=subject_organization(item)
-    return ('@'+organization,) if organization else None
+    return ('@'+organization,) if organization else GENERAL_OWNER
+
+
+
+@lru_cache(maxsize=65536)
+def title_regions(title):
+    """제목에 나온 시·도. 시·군·구 이름은 한 시·도에만 있는 이름일 때만 씁니다('동구'처럼 여러 곳에 있는 이름은 뺍니다)."""
+    found=set()
+    for word in re.findall(r'[가-힣]{2,}',normalize(title)):
+        # '광주'·'강원지사'처럼 시·도 이름으로 시작하면 시·도로만 봅니다(경기 광주시와 헷갈리지 않게).
+        provinces={region for short,region in PROVINCE_SHORT.items() if word.startswith(short)}
+        if provinces:
+            found|=provinces;continue
+        # '상주시장학회'·'가평'처럼 정식 이름(상주시)으로 시작하거나 접미어 없이 쓴 시·군·구입니다.
+        for name,records in LOCALITIES.items():
+            regions={record['region'] for record in records}
+            if len(regions)==1 and (word.startswith(name) and len(name)>=3 or word in (name[:-1],) and len(word)>=2):
+                found|=regions;break
+    return frozenset(found)
+
+
+def lead_subject(item):
+    """제목 첫머리 주체('에어부산, …'의 '에어부산'). 머리표와 따옴표는 뺍니다."""
+    title=re.sub(r'^\s*(?:\[[^\]]*\]|\([^)]*\))\s*','',normalize(item.get('title','')))
+    match=re.match(r'([가-힣a-z0-9]{2,})',title)
+    return match.group(1) if match else ''
 
 
 def item_cached(function):
@@ -566,7 +602,8 @@ def entity_owner_counts(items):
     owners=defaultdict(set)
     for item in items:
         owner=story_owner(item)
-        if owner:owners[owner].update(event_terms(item))
+        # 일반 기사는 여러 주제를 한데 모은 묶음이라, 넣으면 대학 기사 고유어가 흔한 말로 잘못 바뀝니다.
+        if owner and owner!=GENERAL_OWNER:owners[owner].update(event_terms(item))
     joined=['\x00'+'\x00'.join(sorted(terms))+'\x00' for terms in owners.values()]
     @lru_cache(maxsize=None)
     def count(entity):
@@ -721,7 +758,22 @@ def event_pair(first,second,owner_count,topic_count=lambda owner,entity:0):
     # 충돌 검사는 근거가 약한 쌍에도 합니다. 같은 묶음에 들어갈 때 다른 기사와 충돌하지 않는지 봐야 하기 때문입니다.
     blocked=event_conflicts(first,second,shared)
     # 고유어가 없거나 하나만 겹치고 나머지가 다르면 판단할 근거가 부족한 쌍(weak)입니다. 후보로도 올리지 않습니다.
-    if not shared or not (len(shared)>=2 or others):
+    named_event=False
+    if owner==GENERAL_OWNER:
+        # 일반 기사는 지자체만 다른 같은 종류 행사(농업인대학 졸업식, 입시설명회)가 많습니다.
+        regions_a,regions_b=title_regions(first['title']),title_regions(second['title'])
+        if regions_a and regions_b and not regions_a&regions_b:blocked.append('different places')
+        # 고유어 하나로 묶으려면 한쪽 표기가 다섯 글자 이상의 이름('대학만화웹툰대전'과 '웹툰대전')이거나
+        # 제목 첫머리 주체·지역이 같아야 합니다.
+        # 한쪽이 다른 쪽을 그대로 포함하고, 공통 부분이 네 글자 이상이며 실제로 두 글자 이상 긴 이름일 때만 봅니다.
+        # ('한국대학신문'과 '한국대학바둑연맹'의 앞부분, '이탈리아'와 '이탈리아서'의 조사는 해당하지 않습니다.)
+        long_name=any(len(core)>=4 and (x in y or y in x) and (len(core)>=5 or max(len(x),len(y))-len(core)>=2)
+                      for x in entities_a for y in entities_b for core in [shared_core(x,y)] if core in shared)
+        if len(shared)<2 and not long_name and lead_subject(first)!=lead_subject(second) and not regions_a&regions_b:
+            return ('conflict',dict(evidence,blocked_by=', '.join(blocked))) if blocked else ('weak',evidence)
+        # 긴 행사·사업명('대학만화웹툰대전')은 그 자체로 같은 주제의 근거입니다.
+        named_event=long_name
+    if not shared or not (len(shared)>=2 or others or named_event):
         return ('conflict',dict(evidence,blocked_by=', '.join(blocked))) if blocked else ('weak',evidence)
     if gap>48 and len(shared)<2:blocked.insert(0,'over 48h apart with one entity')
     # 하루 넘게 떨어진 보도는 같은 주제의 다른 활동일 수 있어 고유어 외의 공통어도 있어야 합니다.
