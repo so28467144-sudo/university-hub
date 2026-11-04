@@ -35,11 +35,15 @@ class ConservativePublicDuplicates(unittest.TestCase):
                       '대학 브리핑','아주대 사직','경찰 압수수색','소식 모음']:
             with self.subTest(label=label):
                 a=record();a['title']=label+' '+a['title'];b=dict(a,id='b')
-                self.assertEqual(public_story_groups([a,b]),[])
+                # 비슷한 보도로는 묶지 않고, 같은 매체가 같은 기사를 다시 수집한 경우만 같은 제목 묶음이 됩니다.
+                self.assertEqual([g for g in public_story_groups([a,b]) if g['version']!=6],[])
+                self.assertEqual(public_story_groups([a,dict(b,source='다른 언론사')]),[])
 
     def test_notice_without_real_body_is_candidate_only(self):
         a=record();a['body']='구글 뉴스에서 수집한 기사입니다. 기사 내용을 확인하려면 기사 보기 버튼을 눌러 주세요.'
-        self.assertEqual(public_story_groups([a,dict(a,id='b')]),[])
+        # 안내문뿐인 기사는 비슷한 보도로 묶지 않습니다. 제목·매체가 같은 재수집본만 같은 제목 묶음이 됩니다.
+        self.assertEqual([g for g in public_story_groups([a,dict(a,id='b')]) if g['version']!=6],[])
+        self.assertEqual(public_story_groups([a,dict(a,id='b',title='세종대학교 과학 연구 성과 공개')]),[])
 
     def test_representative_preserves_input(self):
         rows=[record(),record('b')];before=copy.deepcopy(rows)

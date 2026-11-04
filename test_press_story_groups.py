@@ -107,5 +107,196 @@ class PressStoryTests(unittest.TestCase):
         self.assertEqual(duplicate_review_groups(rows),[])
 
 
+class IdenticalTitleTests(unittest.TestCase):
+    def test_same_title_from_different_links_groups_even_if_classification_differs(self):
+        a=report('a','세종대 학정포럼 지웅배 교수 초청 강연 개최',source='교수신문')
+        b=dict(report('b','세종대 학정포럼 지웅배 교수 초청 강연 개최 - 머니투데이',source='교수신문',date='2026-11-02T05:00:00+00:00'),
+               regions=['경기도','서울'],category='행사·특강')
+        groups=[g for g in public_story_groups([a,b]) if g['version']==6]
+        self.assertEqual([sorted(g['article_ids']) for g in groups],[['a','b']])
+
+    def test_punctuation_quotes_and_suffix_are_normalized(self):
+        from article_dedup import title_identity
+        self.assertEqual(title_identity(report('a',"세종대, ‘2026 학정포럼’ 개최 > 뉴스")),title_identity(report('b','세종대 2026 학정포럼 개최')))
+        self.assertTrue(title_identity(report('c','부산광역시의회「2026년 대학생 모의의회 경연대회」개최',school='대학명 미확인')))
+
+    def test_same_title_on_distant_dates_or_generic_title_stays_separate(self):
+        a=report('a','세종대 학정포럼 지웅배 교수 초청 강연 개최')
+        b=report('b','세종대 학정포럼 지웅배 교수 초청 강연 개최',date='2026-11-08T01:00:00+00:00')
+        self.assertEqual([g for g in public_story_groups([a,b]) if g['version']==6],[])
+        c=report('c','[인사] 세종대학교');d=report('d','[인사] 세종대학교',date='2026-11-02T09:00:00+00:00')
+        self.assertEqual(public_story_groups([c,d]),[])
+        e=report('e','월영소식',school='경남대학교');f=report('f','월영소식',school='경남대학교',date='2026-11-02T02:00:00+00:00')
+        self.assertEqual(public_story_groups([e,f]),[])
+
+    def test_same_title_with_contradicting_summaries_stays_separate(self):
+        a=report('a','세종대 학정포럼 지웅배 교수 초청 강연 개최',body='천문학 강연을 열어 학생들과 우주를 이야기했다. '*6)
+        b=report('b','세종대 학정포럼 지웅배 교수 초청 강연 개최',body='장학금 전달식과 동문회 총회 등 전혀 다른 일정이 이어졌다는 소식이다. '*6)
+        self.assertEqual([g for g in public_story_groups([a,b]) if g['version']==6],[])
+
+
+class EventEntityTests(unittest.TestCase):
+    """제목이 달라도 같은 고유어·동작을 가진 같은 대학의 같은 사건은 하나로 보여 주고, 애매하면 검토 후보로만 남깁니다."""
+    def groups(self,rows):
+        return [g for g in public_story_groups(rows) if g['version']==7]
+
+    def test_reworded_reports_of_one_event_group_with_evidence(self):
+        rows=[report('a','대구대, 특정구간 전동킥보드 운행 제한…순환버스 운행',school='대구대학교',regions=('경북',)),
+              report('b','대구대, 킥보드 사고 위험에 순환버스 도입',source='B',date='2026-11-02T03:00:00+00:00',school='대구대학교',regions=('경북',)),
+              report('c','대학가 전동킥보드 퇴출 확산…대구대는 무료 순환버스로 해법 찾는다',source='C',date='2026-11-02T06:00:00+00:00',
+                     school='대구대학교',regions=('경북',),category='연구·성과')]
+        groups=self.groups(rows)
+        self.assertEqual([sorted(g['article_ids']) for g in groups],[['a','b','c']])
+        self.assertIn('순환버스',groups[0]['evidence']['shared_entities'])
+        self.assertTrue(groups[0]['representative_reason'])
+
+    def test_person_and_action_group_across_word_order(self):
+        a=report('a','성균관대, 유지범 총장 연임',school='성균관대학교')
+        b=report('b','유지범 성균관대 총장 연임…‘AI 시대 대학 혁신’ 비전 평가',source='B',date='2026-11-02T05:00:00+00:00',school='성균관대학교')
+        self.assertEqual([sorted(g['article_ids']) for g in self.groups([a,b])],[['a','b']])
+
+    def test_distinct_events_or_stages_stay_visible(self):
+        cases={
+            'different events of one anniversary':('동아대, 개교 80주년 기념음악회 개최','동아대, 개교 80주년 기념식 개최'),
+            'same organization, different activities':('국립순천대 위험사회 HUSS 사업단, 청년 주도 주민자치 활동 성과 공유',
+                                                       '국립순천대 위험사회 HUSS 사업단, AI 융합교육 고도화 위한 대학 간 협력 강화'),
+            'announcement and result':('청주대 충북아이돌봄센터, ‘아이돌봄 축제’ 31일 개최','청주대, 5400명 참여 ‘아이돌봄 축제’ 개최…그림대회·가족 골든벨 열려'),
+            'different people':('김교흥 의원, 인천대 공공의전원 설립법 발의','인천대 의전원 설립 ‘총력전’…이연주 시의원, 지원 조례 발의'),
+            'two stories in one title':('세종대 세종뮤지엄갤러리, 김대열 기획초대전 ‘무상지경’ 개최','세종대, 제14회 학정포럼 개최·김대열 작가 기획초대전 진행'),
+            'university only in parentheses':('남자프로배구 대한항공, 이승일·송정민 지명… 윤경(인하대)은 전체 1순위로 OK저축은행행','인하대 배구부 4명 프로 진출…윤경 전체 1순위로 OK저축은행행'),
+            'site boilerplate only':('[창업 동아리] 피자파티 참가자 모집 - 전체 행사 - SNU 캘린더 - 서울대 소식','STUDIO2021 기획연주회 - 전체 행사 - SNU 캘린더 - 서울대 소식'),
+        }
+        schools={'different events of one anniversary':'동아대학교','same organization, different activities':'국립순천대학교',
+                 'announcement and result':'청주대학교','different people':'인천대학교','university only in parentheses':'인하대학교',
+                 'site boilerplate only':'서울대학교'}
+        for name,(first,second) in cases.items():
+            with self.subTest(name=name):
+                school=schools.get(name,'세종대학교')
+                a=report('a',first,school=school);b=report('b',second,source='B',date='2026-11-02T05:00:00+00:00',school=school)
+                self.assertEqual(self.groups([a,b]),[])
+
+    def test_other_university_or_distant_dates_stay_visible(self):
+        a=report('a','대구대, 킥보드 통제와 순환버스 도입',school='대구대학교')
+        self.assertEqual(self.groups([a,report('b','계명대, 킥보드 통제와 순환버스 도입',school='계명대학교',source='B')]),[])
+        self.assertEqual(self.groups([a,report('b','대구대, 킥보드 제한하고 순환버스 운영',school='대구대학교',source='B',date='2026-11-06T01:00:00+00:00')]),[])
+
+    def test_blocked_same_entity_pair_becomes_review_candidate(self):
+        a=report('a','충남대, 공주대 통합 ‘재추진’ 의결…불씨 살린다',school='충남대학교')
+        b=report('b','충남대, 공주대 통합 발표 코앞에서 연기… 재추진 놓고 진통',school='충남대학교',source='B',date='2026-11-02T04:00:00+00:00')
+        self.assertEqual(self.groups([a,b]),[])
+        candidates=[c for c in duplicate_review_groups([a,b]) if 'evidence' in c]
+        self.assertEqual([sorted(c['article_ids']) for c in candidates],[['a','b']])
+        self.assertIn('new-fact word differs',candidates[0]['evidence']['blocked_by'])
+
+    def test_summary_must_mention_the_shared_entity(self):
+        a=report('a','대구대, 킥보드 통제와 순환버스 도입',school='대구대학교',body='대구대학교가 교내 전동킥보드 운행을 제한하고 무료 순환버스를 도입했다. '*3)
+        b=report('b','대구대, 킥보드 제한하고 순환버스 운영',school='대구대학교',source='B',
+                 body='대구대학교 총동문회가 장학금 전달식을 열고 재학생 스무 명에게 장학금을 전했다는 다른 소식이다. '*3)
+        self.assertEqual(self.groups([a,b]),[])
+
+    def test_existing_groups_are_absorbed_without_double_membership(self):
+        rows=[report('a','대구대, 킥보드 통제와 순환버스 도입',school='대구대학교'),
+              report('b','대구대, 킥보드 통제와 순환버스 도입',source='B',school='대구대학교',date='2026-11-02T02:00:00+00:00'),
+              report('c','대구대, 전동킥보드 운행 제한…무료 순환버스 운영',source='C',school='대구대학교',date='2026-11-02T03:00:00+00:00')]
+        groups=public_story_groups(rows)
+        members=[i for g in groups for i in g['article_ids']]
+        self.assertEqual(len(members),len(set(members)))
+        self.assertEqual([(g['version'],sorted(g['article_ids'])) for g in groups],[(7,['a','b','c'])])
+        self.assertEqual(groups[0]['evidence']['merged_groups'],[6])
+
+
+class EventRefinementTests(unittest.TestCase):
+    """돌발 사건·장소·숫자·인물 판정과 근거가 약한 기사의 묶음 참여 규칙."""
+    def groups(self,rows):
+        return [sorted(g['article_ids']) for g in public_story_groups(rows) if g['version']==7]
+
+    def test_incident_report_is_separate_from_event_report(self):
+        a=report('a','아일릿 원희·이로하, 발목 부상…연세대 축제 안무 조정 가능성',school='연세대학교')
+        b=report('b',"아일릿, 연세대 축제 출격…'취뽀하겠어' 센스 개사",source='B',date='2026-11-02T18:00:00+00:00',school='연세대학교')
+        self.assertEqual(self.groups([a,b]),[])
+        candidates=[c for c in duplicate_review_groups([a,b]) if 'evidence' in c]
+        self.assertEqual([(c['merge_risk'],'incident reported on one side only' in c['evidence']['blocked_by']) for c in candidates],[('high',True)])
+
+    def test_same_incident_family_and_risk_words_are_not_conflicts(self):
+        from article_dedup import incidents
+        self.assertEqual(incidents('고려대서 20대 남성 현행범 체포'),incidents('고려대 나체 남성 공연음란 혐의 입건'))
+        self.assertEqual(incidents('대구대, 킥보드 사고 위험에 순환버스 도입'),frozenset())
+        self.assertEqual(incidents('필수의료 붕괴 위기…양산부산대병원 지정 촉구'),frozenset())
+        self.assertEqual(incidents("아일릿, ‘체포하겠어’ 떼창"),frozenset())
+
+    def test_number_forms_and_name_lists(self):
+        from article_dedup import event_conflicts, named_people
+        pairs=[('국립부경대 등록금 시스템 해킹…5천108명 개인정보 유출','국립부경대 등록금 수납시스템 해킹…5108명 개인정보 유출'),
+               ('원광대 2026 WON+ 페스티벌 개최',"원광대, ‘2026 WON+ 페스티벌’ 개최…학생 2,000여 명 참여"),
+               ('울산과학대 여자축구, U-리그 2위로 시즌 마감…서민정 득점 3위','울산과학대 여자축구부, U-리그 2위로 시즌 마감'),
+               ("국립목포대, '세계 상위 2% 과학자'에 김상채·이만승·윤철호·박진우 교수 등재",'국립목포대 이만승‧윤철호 교수 등 4명 선정'),
+               ('김인회 인하대 교수, 119번째 헌혈','‘18년간 헌혈 119번’ 김인회 인하대 로스쿨 교수')]
+        for first,second in pairs:
+            with self.subTest(first=first):
+                self.assertEqual(event_conflicts(report('a',first),report('b',second),set()),[])
+        self.assertEqual(named_people('도성훈 인천시교육감, 예비교사 격려'),frozenset())
+        self.assertEqual(named_people('고려대 조민호 교수, 첫 정년 후 석좌교수'),frozenset({'조민호'}))
+        self.assertIn('conflicting numbers',event_conflicts(report('a','세종대 5명 수상'),report('b','세종대 7명 수상'),set()))
+
+    def test_place_name_is_evidence_only_for_agreements(self):
+        school='수원대학교'
+        a=report('a',"수원대 운영 화성시 어린이급식관리지원센터, '영양의 날' 식생활 캠페인 성료",school=school)
+        b=report('b','수원대 운영 화성시 어린이급식관리지원센터, 식생활 교구대여 사업 성료',source='B',school=school)
+        self.assertEqual(self.groups([a,b]),[])
+        c=report('c','김해시-경상국립대, 농업 분석·연구 협약 체결',school='경상국립대학교')
+        d=report('d','김해시·경상국립대, 농업 분석·연구 손잡았다',source='B',school='경상국립대학교')
+        self.assertEqual(self.groups([c,d]),[['c','d']])
+
+    def test_short_report_joins_when_it_matches_the_representative_and_majority(self):
+        school='성균관대학교'
+        rows=[report('a','성균관대 23대 총장에 유지범 현 총장 연임 확정',school=school),
+              report('b','유지범 성균관대 총장 연임 확정…2030년까지 23대 총장으로',source='B',school=school),
+              report('c','성균관대 이사회, 23대 총장으로 유지범 현 총장 연임 확정',source='C',school=school),
+              report('d','성균관대, 유지범 총장 연임',source='D',school=school)]
+        self.assertEqual(self.groups(rows),[['a','b','c','d']])
+
+    def test_short_report_with_a_conflict_stays_out(self):
+        school='성균관대학교'
+        rows=[report('a','성균관대 23대 총장에 유지범 현 총장 연임 확정',school=school),
+              report('b','유지범 성균관대 총장 연임 확정…2030년까지 23대 총장으로',source='B',school=school),
+              report('c','성균관대 유지범 총장 연임 논란',source='C',school=school)]
+        self.assertEqual(self.groups(rows),[['a','b']])
+
+    def test_roundup_title_is_a_digest(self):
+        from article_dedup import automatic_merge_exclusion
+        self.assertTrue(automatic_merge_exclusion(dict(title="청주시, 청주대에서 '우리 동네 영화관' 개최 외 (10월29일 종합)")))
+        self.assertFalse(automatic_merge_exclusion(dict(title='청주대, 우리 동네 영화관 개최(종합)')))
+
+
+class IdenticalTitleRefinementTests(unittest.TestCase):
+    def test_hyphen_inside_title_is_not_a_publisher_tail(self):
+        from article_dedup import title_identity
+        a=report('a',"강원도립대, ‘2026 강원 창업 POP-UP 콘서트’ 개최",school='강원도립대학교')
+        b=report('b',"강원도립대, ‘2026 강원 창업 POP-UP 콘서트’ 서울서 개최",school='강원도립대학교')
+        self.assertNotEqual(title_identity(a),title_identity(b))
+        self.assertEqual(title_identity(report('c','세종대 학정포럼 개최 - 머니투데이')),title_identity(report('d','세종대 학정포럼 개최')))
+
+    def test_short_words_inside_longer_words_do_not_exclude(self):
+        from article_dedup import automatic_merge_exclusion
+        self.assertFalse(automatic_merge_exclusion(dict(title="삼육대 권소연 박사과정생, '이공계 박사우수장학생' 선발")))
+        self.assertTrue(automatic_merge_exclusion(dict(title='총장 사과 입장 발표')))
+
+    def test_long_specific_title_republished_days_later_groups(self):
+        title="성균관대 앵커사업단, 경기도 양자·AI 유망 기술기업 투자유치·사업화 지원 나선다"
+        a=report('a',title,school='성균관대학교',date='2026-10-28T14:00:00+00:00')
+        b=report('b',title,source='B',school='성균관대학교',date='2026-11-01T15:00:00+00:00')
+        self.assertEqual([sorted(g['article_ids']) for g in public_story_groups([a,b]) if g['version']==6],[['a','b']])
+        c=report('c','세종대 학정포럼 개최',date='2026-10-28T14:00:00+00:00')
+        d=report('d','세종대 학정포럼 개최',source='B',date='2026-11-01T15:00:00+00:00')
+        self.assertEqual([g for g in public_story_groups([c,d]) if g['version']==6],[])
+
+    def test_label_with_specific_content_is_compared(self):
+        a=report('a','[동정] 중앙대광명병원 윤수미 교수, 진단검사의학회 우수구연상 수상',school='중앙대학교')
+        b=report('b','중앙대광명병원 윤수미 교수, 진단검사의학회 ‘우수구연상’ 수상',source='B',school='중앙대학교')
+        self.assertEqual([sorted(g['article_ids']) for g in public_story_groups([a,b]) if g['version']==6],[['a','b']])
+        c=report('c','[인사] 경북대학교',school='경북대학교');e=report('e','[인사] 경북대학교',source='B',school='경북대학교')
+        self.assertEqual(public_story_groups([c,e]),[])
+
+
 if __name__=='__main__':
     unittest.main()

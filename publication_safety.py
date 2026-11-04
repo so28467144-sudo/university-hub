@@ -9,11 +9,29 @@ class PublicationBlocked(RuntimeError):
     pass
 
 
-def verified_unknown_fill(previous, proposed):
+def version_decision(previous, raw_record=None):
+    """같은 링크(기사 ID)의 제목 수정본까지 보고 일관된 판정 하나를 고릅니다. 서로 맞지 않으면 None입니다."""
+    from university_regions import reclassify_article
+    current=reclassify_article(previous)
+    pending=(raw_record or {}).get('pending_update') or {}
+    # URL이 바뀐 수정본은 같은 기사라고 확정할 수 없습니다.
+    if not pending.get('title') or any(key in pending for key in ('url','original_url')):return current
+    revised=reclassify_article(dict(previous,**pending))
+    a,b=set(current['regions']),set(revised['regions'])
+    if a==b:return current
+    # 한쪽 제목만 캠퍼스를 확정했고 그 지역이 다른 쪽 추정 범위 안이면 확정 판정을 씁니다.
+    for sure,other in ((current,revised),(revised,current)):
+        if (sure.get('classification_confidence')=='confirmed' and other.get('classification_confidence')=='estimated'
+                and sure['regions'] and set(sure['regions'])<=set(other['regions'])):
+            return sure
+    return None
+
+
+def verified_unknown_fill(previous, proposed, raw_record=None):
     """Only fill an empty public region from independently reproducible evidence."""
     if previous.get('regions') != [] or not proposed.get('regions'):return False
-    from university_regions import reclassify_article
-    decision=reclassify_article(previous)
+    decision=version_decision(previous, raw_record)
+    if decision is None:return False
     schools=decision.get('universities',[])
     if set(decision['regions'])!=set(proposed['regions']) or decision.get('conflicting_region_evidence'):return False
     if not schools:
@@ -22,18 +40,25 @@ def verified_unknown_fill(previous, proposed):
         return not decision.get('foreign_universities') and '해외' not in decision['regions'] and set(decision['regions'])<=titled
     return all(
         u.get('region_resolution')=='national_network' and u.get('regions')==['전국'] or
+        u.get('region_resolution')=='single_region_unlisted_campus' and u.get('regions') and u.get('source') or
         u.get('addresses') and u.get('source') and u.get('regions') and u.get('region_resolution') in
         ('verified_campus','unique_verified_location','article_address_intersection','campus_place_match','campus_candidates') for u in schools) and set(decision['regions'])=={r for u in schools for r in u['regions']}
 
 
 def estimate_policy_update(previous, proposed):
-    """본교 기준으로 추정했던 기사만 확인된 캠퍼스 지역 전체로 넓힙니다. 기존 지역은 지우지 않습니다."""
-    if previous.get('classification_method')!='main_campus_default' or not previous.get('regions'):return False
+    """캠퍼스 근거 없이 좁게 저장된 기사를 확인된 캠퍼스 지역 전체로 넓힙니다. 기존 지역은 지우지 않습니다."""
+    if not previous.get('regions'):return False
     from university_regions import reclassify_article
     decision=reclassify_article(previous)
     new=set(decision['regions'])
-    return (decision.get('classification_method')=='multi_campus_estimate' and new==set(proposed.get('regions') or [])
-            and set(previous['regions'])<=new and not decision.get('conflicting_region_evidence'))
+    if (decision.get('classification_method')!='multi_campus_estimate' or new!=set(proposed.get('regions') or [])
+            or not set(previous['regions'])<new or decision.get('conflicting_region_evidence')):return False
+    if previous.get('classification_method')=='main_campus_default':return True
+    # 캠퍼스·기사 지역·전국으로 확정 기록된 기사는 넓히지 않습니다.
+    if previous.get('classification_method') not in (None,'','multi_campus_estimate','review_required'):return False
+    # 예전 기록에 캠퍼스·병원·학과 근거가 있었다면 넓히지 않습니다.
+    return not any(u.get('campus_status') in ('matched','region_only') or u.get('affiliation_type')=='university_hospital'
+                   or u.get('campus_cue_evidence') or u.get('campus_place_evidence') for u in previous.get('universities',[]))
 
 
 def verified_campus_correction(previous, proposed):
@@ -50,8 +75,8 @@ def verified_campus_correction(previous, proposed):
     if any(p['region'] in old-new for p in decision.get('mentioned_regions',[])):return False
     candidates={r for u in schools for r in REGISTRY.get(u['name'],[])}|{r['region'] for u in schools for r in ADDRESS_RECORDS.get(u['name'],[])}
     if not (old-{'해외'})<=candidates:return False
-    return all(u.get('region_resolution')=='verified_campus' and u.get('addresses') and u.get('source') and u.get('regions')
-               and (u.get('affiliation_type')=='university_hospital' or u.get('campus_cue_evidence')
+    return all(u.get('region_resolution') in ('verified_campus','campus_place_match') and u.get('addresses') and u.get('source') and u.get('regions')
+               and (u.get('affiliation_type')=='university_hospital' or u.get('campus_cue_evidence') or u.get('campus_place_evidence')
                     or (u.get('campus_status')=='matched' and u.get('campus_names'))) for u in schools) and \
         new-{'해외'}=={r for u in schools for r in u['regions']}
 
@@ -151,6 +176,6 @@ def publication_errors(previous_news, previous_raw, news, raw, new_ids=(), exclu
                 add(label+'_duplicate_links_lost', [article_id])
             if assess_summary(a.get('body', ''), a.get('title', ''))[0] in USEFUL_KINDS and a.get('body') != b.get('body'):
                 add(label+'_useful_summary_lost', [article_id])
-            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b) and not verified_campus_correction(a,b) and not estimate_policy_update(a,b):
+            if label == 'public' and 'regions' in a and set(a.get('regions', [])) != set(b.get('regions', [])) and not verified_unknown_fill(a,b,new_raw.get(article_id)) and not verified_campus_correction(a,b) and not estimate_policy_update(a,b):
                 add('unapproved_existing_region_change', [article_id])
     return errors

@@ -25,7 +25,7 @@ from article_categories import classify_category
 from rss_searches import build_search_plan, select_search_batch
 from classification_monitor import build_report
 from rss_summaries import select_summary, preserve_summary, USEFUL_KINDS
-from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill, verified_campus_correction, estimate_policy_update
+from publication_safety import merge_raw_record, merge_raw_sources, region_review, publication_errors, verified_unknown_fill, verified_campus_correction, estimate_policy_update, version_decision
 
 
 class PlainText(HTMLParser):
@@ -289,11 +289,14 @@ class Collector:
                 proposed = proposals.get(old['id'])
                 if proposed is None:
                     proposed = reclassify_article(dict(raw_item, **raw_item.get('pending_update', {})))
+                # 제목만 바뀐 같은 기사는 두 제목을 함께 보고 일관된 판정을 씁니다.
+                if raw_item.get('pending_update',{}).get('title') and not old.get('regions'):
+                    proposed = version_decision(old, raw_item) or proposed
                 review = region_review(old, proposed)
                 correction=bool(review) and verified_campus_correction(old,proposed)
                 widened=bool(review) and not correction and estimate_policy_update(old,proposed)
-                if review and (correction or widened or verified_unknown_fill(old,proposed)):
-                    confirmed=reclassify_article(old)
+                if review and (correction or widened or verified_unknown_fill(old,proposed,raw_item)):
+                    confirmed=(version_decision(old, raw_item) if not correction and not widened else None) or reclassify_article(old)
                     # Original raw and all non-classification fields stay intact.
                     fields=('school','school_names','school_aliases','regions','region','city','universities',
                             'mentioned_regions','classification_status','classification_version','classification_method','classification_confidence',
@@ -343,8 +346,9 @@ class Collector:
             self.status['relevance_counts'] = dict(university=sum(row['relevance'] == 'university' for row in news),
                                                    review=sum(row['relevance'] == 'review' for row in news),
                                                    hospital_excluded=sum(row.get('relevance') == 'hospital_excluded' for row in raw_news))
-            self.status['public_story_groups'] = public_story_groups(news)
-            self.status['duplicate_review_candidates'] = duplicate_review_groups(news)
+            story_groups, event_candidates = public_story_groups(news, with_candidates=True)
+            self.status['public_story_groups'] = story_groups
+            self.status['duplicate_review_candidates'] = duplicate_review_groups(news, story_groups, event_candidates)
             self.status['proposed_region_downgrades_retained'] = sum(bool(r['previous_regions']) and not r['proposed_regions'] for r in self.region_change_reviews)
             self.search_cursor=next_cursor
             self.status.update(search_next_cursor=next_cursor,search_plan_total=len(plan),search_batch_size=len(batch))

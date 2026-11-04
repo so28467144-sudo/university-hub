@@ -413,10 +413,12 @@ class FeedTests(unittest.TestCase):
             self.assertIn(road, item['universities'][0]['addresses'][0])
 
     def test_unknown_campus_never_receives_headquarters_address(self):
+        # 소재지가 한 지역뿐인 대학은 지역만 추정하고 본교 주소로 대체하지 않습니다.
         item = reclassify_article(dict(title='선문대 미등록캠퍼스 행사', body=''))
-        self.assertEqual(item['regions'], [])
+        self.assertEqual((item['regions'], item['classification_confidence']), (['충남'], 'estimated'))
         self.assertEqual(item['universities'][0]['addresses'], [])
-        self.assertEqual(item['universities'][0]['campus_status'], 'unresolved')
+        item = reclassify_article(dict(title='한양대 미등록캠퍼스 행사', body=''))
+        self.assertEqual((item['regions'], item['universities'][0]['campus_status']), ([], 'unresolved'))
 
     def test_campus_scope_and_summary(self):
         item = reclassify_article(dict(title='한양대 ERICA와 연세대 미래캠퍼스 협약', body=''))

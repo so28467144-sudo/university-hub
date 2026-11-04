@@ -18,6 +18,8 @@ CAMPUS_SELECTORS = {
 
 # 대학명에 바로 붙은 고유 표현만 기존 주소 레코드와 연결합니다. 일반 지명 사전이 아닙니다.
 CAMPUS_IDENTITY_CUES = [
+    dict(school='가천대학교',label='글로벌캠퍼스',aliases=['글로벌캠퍼스','글로벌캠'],road='성남대로 1342',
+         source='https://www.gachon.ac.kr/glac/2910/subview.do'),
     dict(school='명지대학교',label='인문캠퍼스',aliases=['아랍지역학과','아랍지역학전공','아랍지역학'],road='거북골로 34',
          source='https://www.mju.ac.kr/humanities/2797/subview.do'),
     dict(school='상명대학교',label='천안캠퍼스',aliases=['국어문화원'],road='상명대길 31',
@@ -50,6 +52,8 @@ CAMPUS_IDENTITY_CUES = [
 
 # 공공 주소록에 빠진 캠퍼스는 대학 공식 안내로 보완하며 출처를 함께 저장합니다.
 SUPPLEMENTS = [
+    dict(name='가천대학교', original_name='가천대학교 메디컬캠퍼스', campus='메디컬캠퍼스', region='인천', address='인천광역시 연수구 함박뫼로 191',
+         source='https://www.gachon.ac.kr/glac/2910/subview.do'),
     dict(name='성균관대학교',original_name='성균관대학교 자연과학캠퍼스',campus='자연과학캠퍼스',region='경기도',address='경기도 수원시 장안구 서부로 2066',source='https://www.skku.edu/_res/skku/etc/yr2022.pdf'),
     dict(name='부산가톨릭대학교',original_name='부산가톨릭대학교 하하캠퍼스',campus='하하캠퍼스',region='부산',address='부산광역시 금정구 기찰로102번길 56-7',source='https://www.busan.go.kr/hahacampus/about06'),
     dict(name='한국조지메이슨대학교', original_name='한국조지메이슨대학교 한국캠퍼스', campus='한국캠퍼스', region='인천', address='인천광역시 연수구 송도문화로 119', source='https://www.yeonsu.go.kr/main/part/education/facility.asp?bcode=14'),

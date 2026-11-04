@@ -29,13 +29,22 @@ function selectPublicRepresentatives(rows,groups=[]){
   const representative=byId.get(group.representative_id);
   // Never hide unique searchable/filterable/exported content, even if stale
   // server metadata incorrectly claims that two articles are duplicates.
-  if(group.version!==4&&group.version!==5)continue;
+  if(![4,5,6,7].includes(group.version))continue;
   // 묶을 때 지역·유형이 달라졌다면 숨긴 기사만의 필터 결과가 사라지므로 표시합니다.
-  const visibleKeys=group.version===5?['school_names','regions','category']:['title','body','school','school_names','school_aliases','regions','region','city','category','source','date','url','original_url'];
-  if(ids.some(id=>visibleKeys.some(key=>JSON.stringify(byId.get(id)[key])!==JSON.stringify(representative[key]))))continue;
+  // 같은 제목 묶음(6)과 같은 사건 묶음(7)은 대표 기사가 묶음 전체의 지역·유형으로 검색되게 합니다.
+  // 같은 사건 묶음(7)은 대학이 같을 때만 숨깁니다.
+  const visibleKeys=group.version===6?[]:group.version===7?['school_names']:group.version===5?['school_names','regions','category']:['title','body','school','school_names','school_aliases','regions','region','city','category','source','date','url','original_url'];
+  // 같은 사건 묶음(7)은 대학 순서만 다른 기사도 같은 대학으로 봅니다.
+  const comparable=(row,key)=>JSON.stringify(group.version===7&&key==='school_names'?[...(row[key]||[])].sort():row[key]);
+  if(ids.some(id=>visibleKeys.some(key=>comparable(byId.get(id),key)!==comparable(representative,key))))continue;
   const aliases=new Set(ids.flatMap(id=>byId.get(id).duplicate_ids||[id]));ids.forEach(id=>aliases.add(id));
-  const related_reports=group.version===5?ids.filter(id=>id!==representative.id).map(id=>byId.get(id)):[];
-  replacements.set(representative.id,{...representative,duplicate_ids:[...aliases],duplicate_count:aliases.size,related_reports});
+  const related_reports=group.version>=5?ids.filter(id=>id!==representative.id).map(id=>byId.get(id)):[];
+  const merged={...representative,duplicate_ids:[...aliases],duplicate_count:aliases.size,related_reports};
+  if(group.version===6||group.version===7){
+   merged.regions=[...new Set(ids.flatMap(id=>byId.get(id).regions||[]))].sort();
+   merged.filter_categories=[...new Set(ids.map(id=>byId.get(id).category))];
+  }
+  replacements.set(representative.id,merged);
   ids.forEach(id=>{claimed.add(id);if(id!==representative.id)hidden.add(id);});
  }
  return rows.filter(row=>!hidden.has(row.id)).map(row=>replacements.get(row.id)||row);
@@ -103,7 +112,7 @@ function showExportNotice(message){
 }
 function showUniversityAddresses(article){
  const related=article.related_reports||[];
- $('detailDuplicates').textContent=related.length?`같은 사건을 다룬 다른 보도 ${related.length}건을 함께 묶었습니다.`:article.duplicate_count>1?`같은 내용의 기사 ${article.duplicate_count}건 중 RSS 요약과 제목에 확인된 정보가 더 많은 대표 기사를 표시합니다.`:'';
+ $('detailDuplicates').textContent=related.length?`같은 주제의 다른 기사 보기 (${related.length}건)`:article.duplicate_count>1?`같은 내용의 기사 ${article.duplicate_count}건 중 RSS 요약과 제목에 확인된 정보가 더 많은 대표 기사를 표시합니다.`:'';
  for(const report of related){
  const line=document.createElement(/^https?:\/\//.test(report.original_url||report.url||'')?'a':'span');line.className='related-report';
  line.textContent=`${report.title} · ${report.source||'출처 미상'} · ${dateLabel(report.date)}`;
@@ -136,7 +145,7 @@ function showUniversityAddresses(article){
 }
 function render(){
  const bounds=periodBounds();
- const baseRows=news.filter(n=>(state.selectedRegions.size===0||[...state.selectedRegions].some(r=>inRegion(n,r)))&&(state.category==='전체'||n.category===state.category)&&(!state.savedOnly||isArticleSaved(n))&&matchesSearch(n,state.query));
+ const baseRows=news.filter(n=>(state.selectedRegions.size===0||[...state.selectedRegions].some(r=>inRegion(n,r)))&&(state.category==='전체'||(n.filter_categories||[n.category]).includes(state.category))&&(!state.savedOnly||isArticleSaved(n))&&matchesSearch(n,state.query));
  const periodLabels={all:'전체',today:'오늘','7days':'최근 7일','30days':'최근 30일',custom:'직접 선택'};
  document.querySelectorAll('[data-period]').forEach(button=>{
  const period=button.dataset.period,active=period===state.period,range=periodBounds(period);

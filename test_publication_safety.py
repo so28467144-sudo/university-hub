@@ -62,7 +62,7 @@ class PublicationPreservationTests(unittest.TestCase):
 
     def test_official_hospital_address_corrects_school_level_region(self):
         with TemporaryDirectory() as directory:
-            root=Path(directory);old=article();old.update(title='분당서울대병원 연구 발표',body='',regions=['서울'])
+            root=Path(directory);old=article();old.update(title='서울대 간호학과 학생, 분당서울대병원 현장 실습',body='',regions=['서울'])
             (root/'news.json').write_text(json.dumps(dict(news=[old],status={})),encoding='utf-8')
             payload=mock_run(root)
             self.assertEqual(payload['news'][0]['regions'],['경기도'])
@@ -73,7 +73,7 @@ class PublicationPreservationTests(unittest.TestCase):
 
     def test_region_written_in_article_is_not_corrected(self):
         with TemporaryDirectory() as directory:
-            root=Path(directory);old=article();old.update(title='서울 기관, 분당서울대병원과 연구 발표',body='',regions=['서울'])
+            root=Path(directory);old=article();old.update(title='서울 소재 기관, 서울대 간호학과 학생과 분당서울대병원 현장 실습',body='',regions=['서울'])
             (root/'news.json').write_text(json.dumps(dict(news=[old],status={})),encoding='utf-8')
             payload=mock_run(root)
             self.assertEqual(payload['news'][0]['regions'],['서울'])

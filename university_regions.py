@@ -166,6 +166,14 @@ def campus_alias_present(option, text):
     return any(re.search(r'(?<![가-힣A-Za-z0-9])'+r'\s*'.join(map(re.escape, alias))+
                          r'(?=$|[^가-힣A-Za-z0-9])', text, re.I)
                for alias in option.get('short_aliases', []))
+PLACE_REGIONS = defaultdict(set)
+for _records in ADDRESS_RECORDS.values():
+    for _record in _records:
+        for _part in re.split(r'[\s()]+', _record['address'])[1:]:
+            _stem = re.sub(r'(?:로|길|동|읍|면|리|시|군|구)?[\d-]*(?:가|번길)?$', '', compact(_part))
+            if len(_stem) >= 2:PLACE_REGIONS[_stem].add(_record['region'])
+for _name, _records in LOCALITIES.items():
+    for _record in _records:PLACE_REGIONS[_name[:-1]].add(_record['region'])
 ALIAS_CANDIDATES = defaultdict(set)
 NAME_ALIAS_RECORDS=json.loads((Path(__file__).resolve().parent/'university_name_aliases.json').read_text(encoding='utf-8'))['records']
 for record in NAME_ALIAS_RECORDS:
@@ -287,11 +295,20 @@ def resolve_universities(text):
         entry['cue_evidence'].extend(cue_evidence)
         entry['chosen'].extend(chosen)
         if not chosen:
-            unknown = re.findall(r'([가-힣A-Za-z]{2,16})\s*캠퍼스(?!투어|탐방|견학)', nearby)
+            labels = [(m.group(1), bool(m.group(2))) for m in re.finditer(r'([가-힣A-Za-z0-9]{2,16})(\s*)캠퍼스(?!\s*(?:투어|탐방|견학))', nearby)]
+            unknown = [label for label, _ in labels]
             descriptions = {'현장','고령친화','디지털','가상','온라인','스마트','산학협력','미래','미래형','혁신','오픈','개방','행복','필드','풀리','낭만','직무','기간','다소비','새로운','맞아','가을','듣고','팝업','지하','함께','열린','도심','대학','사흘간','이틀간','아이디어로','중장년일자리','에코','eco','ai','RISE','rise','전국'}
             unknown=[label for label in unknown if compact(label) not in {compact(x) for x in descriptions}]
             unknown = [label for label in unknown if label not in descriptions and label not in ('초청해','방문해','찾아','둘러본') and not label.endswith(('형','는','은','한','들의','의','과','와'))]
-            entry['unknown'].extend(label+'캠퍼스' for label in unknown)
+            spaced = {label for label, gap in labels if gap}
+            for label in unknown:
+                # '안암캠퍼스'는 주소록의 '안암로 145 (안암동5가)'와 같은 캠퍼스입니다.
+                records = address_campus_records(name, label)
+                if records:
+                    entry['chosen'].append(dict(label=label+'캠퍼스', aliases=[label+'캠퍼스'], records=records))
+                # '대낮 캠퍼스'처럼 띄어 쓴 수식어는 지명일 때만 캠퍼스명으로 봅니다.
+                elif label not in spaced or campus_locality(label+'캠퍼스', set(REGISTRY.get(name, []))) is not None:
+                    entry['unknown'].append(label+'캠퍼스')
     results = []
     shared=re.search(r'([가-힣]{2,5})공동캠퍼스',text.split('\n')[0])
     shared_location=campus_locality(shared.group() if shared else '',())
@@ -303,8 +320,11 @@ def resolve_universities(text):
             selected = {r['address']: r for option in chosen for r in option['records']}
             records = list(selected.values())
         elif entry['unknown']:
-            records = []
             region_evidence=[location for label in entry['unknown'] if (location:=campus_locality(label,set(REGISTRY[name]))) is not None]
+            # 소재지가 한 지역뿐인 대학은 주소록에 없는 캠퍼스명이어도 그 지역입니다. 본교 주소로 대체하지는 않습니다.
+            if not region_evidence and records and len({r['region'] for r in records}) == 1 and unlisted_campus_is_local(entry['unknown'][0], records[0]['region']):
+                region_evidence=[dict(name=entry['unknown'][0],region=records[0]['region'],source=DIRECTORY_SOURCE,basis='single_region_university')]
+            records = []
         if chosen and not records:
             region_evidence=[location for option in chosen if (location:=campus_locality(option['label'],set(REGISTRY[name]))) is not None]
         if shared_location and not chosen:
@@ -367,6 +387,26 @@ def polytech_campus_in_text(text):
     return next(iter(hits)) if len(hits)==1 else None
 
 
+def unlisted_campus_is_local(label, region):
+    """주소록에 없는 캠퍼스명이 별도 캠퍼스나 다른 지역의 지명을 뜻하지 않을 때만 단일 소재지로 봅니다."""
+    stem = compact(label).removesuffix('캠퍼스')
+    if re.match(SEPARATE_CAMPUS_WORDS, stem):
+        return False
+    # '송도'처럼 다른 지역 주소 단어의 앞부분이면 그 지역 지명일 수 있습니다.
+    regions = set().union(*(regs for place, regs in PLACE_REGIONS.items() if place.startswith(stem))) if len(stem) >= 2 else set()
+    return regions <= {region}
+
+
+def address_campus_records(name, label):
+    """캠퍼스명이 그 대학 주소의 도로명·동 이름과 같고 한 지역으로만 이어지면 해당 주소 레코드입니다."""
+    stem = compact(label)
+    if len(stem) < 2:
+        return []
+    hits = [r for r in ADDRESS_RECORDS.get(name, []) if compact(r.get('campus', '')) == stem+'캠퍼스'
+            or any(compact(part).startswith(stem) for part in re.split(r'[\s()]+', r['address'])[1:] if part)]
+    return hits if hits and len({r['region'] for r in hits}) == 1 else []
+
+
 def match_universities(text):
     return [(u['name'], u['regions']) for u in resolve_universities(text)]
 
@@ -402,6 +442,8 @@ PUBLISHER_SUFFIXES = ('','뉴스룸','공식뉴스룸','대표','대표홈페이
 CAMPUS_ROAD_PLACES = ('안암','용봉','흑석','죽전','송도')
 NOT_PLACE_TAIL = r'(?!\s*(?:FC|삼성|KT|체제|라인|공장|기술|돌입|성공|맞춤))'
 PARTNER_CONTEXT = r'협약|협력|MOU|맞손|기관과|기업과|거점'
+# '메디컬캠퍼스'·'글로벌캠퍼스'처럼 별도 캠퍼스를 뜻하는 이름은 본교와 다른 지역일 수 있습니다.
+SEPARATE_CAMPUS_WORDS = r'(?:메디컬|글로벌|국제|의료|바이오|사이언스|첨단|미래|제\d|분교|신)'
 NATIONAL_SCOPE = r'전국(?:\s*[\d,]+\s*개)?\s*(?:대학|대학교|대학생|캠퍼스|단위|배포|공모|순회)'
 
 
@@ -606,6 +648,12 @@ def apply_region_priority(universities,mentioned,title='',summary=''):
         status=university['campus_status']
         if status in ('matched','region_only'):
             university['region_resolution']='verified_campus' if status=='matched' else 'explicit_campus_locality'
+            evidence=university.get('campus_region_evidence') or []
+            if status=='region_only' and evidence and all(e.get('basis')=='single_region_university' for e in evidence):
+                university['region_resolution']='single_region_unlisted_campus'
+                # 기사에 다른 지역이 나오면 미등록 캠퍼스가 그 지역에 있을 수 있어 정하지 않습니다.
+                if any(p['region'] not in university['regions'] for p in domestic_mentions):
+                    university.update(regions=[],campus_region_evidence=[],region_resolution='campus_unverified')
         elif status=='not_specified' and len(candidates)==1:
             university['region_resolution']='unique_verified_location' if university['records'] else 'legacy_registry'
         elif status=='not_specified' and len(candidates)>1:
@@ -766,7 +814,7 @@ def reclassify_article(item):
                              identification_method='official_newsroom' if name==newsroom_school else 'article_text',
                              identification_source=item.get('source','') if name==newsroom_school else '',
                              addresses=sorted({r['address'] for r in records}),
-                             source=records[0]['source'] if records and university.get('affiliation_type')=='university_hospital' else DIRECTORY_SOURCE if records or university.get('candidate_records') else '',
+                             source=records[0]['source'] if records and university.get('affiliation_type')=='university_hospital' else DIRECTORY_SOURCE if records or university.get('candidate_records') else next((e['source'] for e in university['campus_region_evidence'] if e.get('source')),''),
                              method='national_network' if name=='한국폴리텍대학' else 'campus_candidates' if university.get('region_resolution')=='campus_candidates' else 'campus_ambiguous' if university.get('region_resolution')=='campus_unspecified' else 'address_directory' if records else 'campus_region' if university['campus_status']=='region_only' else 'campus_unresolved' if university['campus_status']=='unresolved' else 'manual_registry',
                              campus_names=university['campus_names'], campus_status=university['campus_status'], campuses=campuses))
     subjects=[u['name'] for u in matches]+foreign_subjects
@@ -775,7 +823,8 @@ def reclassify_article(item):
     classification_method=('review_required' if not regions else 'multi_campus_estimate' if 'campus_candidates' in resolutions
                            else 'national_scope' if regions==['전국'] else 'article_location' if 'article_address_intersection' in resolutions or not matches
                            else 'campus_location')
-    confidence='unclassified' if not regions else 'estimated' if classification_method=='multi_campus_estimate' else 'confirmed'
+    confidence=('unclassified' if not regions else 'estimated' if classification_method=='multi_campus_estimate'
+                or 'single_region_unlisted_campus' in resolutions else 'confirmed')
     # 지자체 여성·농업인대학 같은 교육과정은 education_programs에만 두고 대학명으로 표시하지 않습니다.
     return dict(item, classification_method=classification_method, classification_confidence=confidence,
                 school=' · '.join(subjects) or '대학명 미확인',

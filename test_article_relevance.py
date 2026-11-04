@@ -18,29 +18,42 @@ class HospitalRelevanceTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(relevance(title),'hospital_excluded')
 
-    def test_research_and_education_stay(self):
+    def test_hospital_research_and_education_are_also_excluded(self):
+        # 대학명이 들어 있어도 병원·의료원이 주체이면 연구·학술 소식도 뺍니다.
         for title in ('분당서울대병원, 내장지방 악화 원인 규명','강원대병원 최상지 교수, NEJM 논평 게재',
                       '단국대병원 우상범 전공의, 대한재활의학회 우수연제상 수상','서울대병원 서지연 교수팀, 선종 크기별 위험 분석',
-                      '세종충남대학교병원 최규태 교수, 진단검사 자동화 공모전 최우수상','고려대의료원, 전공의 수련교육 혁신'):
+                      '세종충남대학교병원 최규태 교수, 진단검사 자동화 공모전 최우수상','고려대의료원, 전공의 수련교육 혁신',
+                      '순천향대 중앙의료원, 2026년 향설의학연구학술대회 개최'):
             with self.subTest(title=title):
-                self.assertNotEqual(relevance(title),'hospital_excluded')
+                self.assertEqual(classify_relevance(dict(title=title)),('hospital_excluded',classify_relevance(dict(title=title))[1]))
+                self.assertTrue(classify_relevance(dict(title=title))[1])
 
     def test_reported_borderline_cases(self):
         self.assertEqual(relevance('강동경희대병원, 호흡기질환 평가 결과 공개…결핵 99.8점'),'hospital_excluded')
         self.assertEqual(relevance("화순전남대병원, 첨단 감마나이프 '에스프릿' 도입"),'hospital_excluded')
-        self.assertNotEqual(relevance("한양대구리병원 황선진 교수, BRIC '한국을 빛내는 사람들' 선정"),'hospital_excluded')
-        self.assertNotEqual(relevance("건국대병원 이종호 전공의 '수혈 전 혈액 품질 평가 지표' 우수구연상 수상"),'hospital_excluded')
+        self.assertEqual(relevance("한양대구리병원 황선진 교수, BRIC '한국을 빛내는 사람들' 선정"),'hospital_excluded')
+        self.assertEqual(relevance("건국대병원 이종호 전공의 '수혈 전 혈액 품질 평가 지표' 우수구연상 수상"),'hospital_excluded')
         self.assertIsNone(__import__('re').search(__import__('article_relevance').ACADEMIC,'전북교육청 협약'))
 
-    def test_uncertain_hospital_articles_are_kept_for_review(self):
-        for title in ('강동경희대병원, 우주의학센터 개소…융합연구 본격','원광대병원, 교당에 교화지원금 전달','아주대병원 압수수색 논란'):
+    def test_hospital_subject_without_other_signals_is_excluded(self):
+        for title in ('강동경희대병원, 우주의학센터 개소…융합연구 본격','원광대병원, 교당에 교화지원금 전달','아주대병원 압수수색 논란',
+                      "연세대 원주세브란스기독병원, 발달장애인 가족 '쉼' 프로그램 '성료'",'[10월 30일 병원계 이모저모⑤]강남차, 단국대, 분당제생병원 등 소식',
+                      '전남대·조선대·광주기독병원, 만성 폐쇄성 폐질환 평가 1등급(종합)',
+                      '천안 양대 대학병원 의료평가서 두각…순천향대 응급의료 충청권 1위·단국대 결핵 4회 연속 1등급'):
             with self.subTest(title=title):
-                self.assertEqual(relevance(title),'review')
+                self.assertEqual(relevance(title),'hospital_excluded')
 
     def test_university_article_is_not_judged_by_a_hospital_word(self):
         self.assertFalse(hospital_subject('경희대, 강동경희대병원과 공동 연구 협약'))
         self.assertFalse(hospital_subject('세종대 학생 봉사단, 지역 병원 방문'))
-        self.assertFalse(hospital_subject('제주대 부설동물병원 증축…전문 진료 기반 확충'))
+        self.assertFalse(hospital_subject('충남대-충남대병원, 공동 연구 협약'))
+        # 학과·학생이 주체이고 병원은 실습 장소나 협력 상대인 기사는 대학 소식입니다.
+        for title in ('극동대 간호학과, 국립소방병원서 직무 탐색 프로그램 참여','단국대 치위생학과, 대학병원 연계 교육으로 인재 양성',
+                      '호남대, 광주 24시 바덴동물메디컬센터와 산학 협력 추진','제주대, 부설동물병원 증축-전문 진료·임상교육 기반 강화',
+                      '제주대학교 부설동물병원 증축… 오는 3일 기념식','동양대 김우재 교수팀 “병원별 로봇수술 가격 최대 2.6배 차이”',
+                      '전남광주시, ‘500병상 병원·목포대 로스쿨’ 추진…서남권 발전계획 마련','용인 대학서 학생 학교버스에 깔려…병원 이송'):
+            with self.subTest(title=title):
+                self.assertEqual(relevance(title),'university')
         self.assertEqual(relevance('연세대 연구팀 기술 개발'),'university')
 
     def test_listed_keeps_review_and_drops_only_exclusions(self):
@@ -118,11 +131,12 @@ class PublicLimitTests(unittest.TestCase):
             self.assertEqual(by['o']['regions'],['서울'])
             self.assertNotIn('h',by)
 
-    def test_review_articles_are_not_removed(self):
+    def test_department_article_at_a_hospital_is_not_removed(self):
         from rss_collector import publish_university_articles
-        news=[self.article('r','아주대병원 압수수색 논란','2026-11-02T03:00:00+00:00')]
+        news=[self.article('r','극동대 간호학과, 국립소방병원서 직무 탐색','2026-11-02T03:00:00+00:00'),
+              self.article('h','아주대병원 압수수색 논란','2026-11-02T02:00:00+00:00')]
         shown,excluded=publish_university_articles(news,news,{},limit=5)
-        self.assertEqual(([r['relevance'] for r in shown],excluded),(['review'],set()))
+        self.assertEqual(([r['relevance'] for r in shown],excluded),(['university'],{'h'}))
 
     def test_guard_accepts_only_recorded_exclusions(self):
         from publication_safety import publication_errors

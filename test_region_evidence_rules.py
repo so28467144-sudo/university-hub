@@ -164,6 +164,112 @@ class NoUniversityStoryTests(unittest.TestCase):
             self.assertEqual((row['regions'],row['classification_method']),([region],'campus_location'),title)
 
 
+class CampusNameLinkTests(unittest.TestCase):
+    def test_campus_name_matches_address_of_one_campus(self):
+        for title,region in (('경찰, 고려대 안암캠퍼스 활보 남성 체포','서울'),('고려대 서울 안암캠퍼스서 행사','서울'),
+                             ('고려대 세종캠퍼스 연구','세종'),('중앙대 흑석캠퍼스 축제','서울')):
+            row=classify(title)
+            self.assertEqual((row['regions'],row['classification_confidence']),([region],'confirmed'),title)
+            self.assertTrue(row['universities'][0]['addresses'],title)
+
+    def test_spaced_modifier_is_not_a_campus_name(self):
+        row=classify('옷 다 벗고 고려대 활보…대낮 캠퍼스에 나타난 20대')
+        self.assertEqual((row['regions'],row['classification_method']),(['서울','세종'],'multi_campus_estimate'))
+        self.assertEqual(classify('청운대, 바비큐축제 연계 캠퍼스 캠핑장 성료')['regions'],['충남'])
+        self.assertEqual(classify('인천대학교, 문일여고 360여 명 초청 캠퍼스 탐방')['regions'],['인천'])
+
+    def test_unlisted_campus_of_single_region_university(self):
+        # 띄어 쓴 '서울주 캠퍼스'는 캠퍼스명으로 보지 않아 울산대의 단일 소재지로 분류됩니다.
+        self.assertEqual(classify("울산대, UbiCam 6호 ‘서울주 캠퍼스’ 조성")['regions'],['울산'])
+        for title,region in (("계명대 성서캠퍼스에서 AI 비전 선포",'대구'),("울산대 거점형 멀티캠퍼스 '유비캠' 6호 조성",'울산')):
+            row=classify(title)
+            self.assertEqual((row['regions'],row['classification_confidence']),([region],'estimated'),title)
+            self.assertEqual(row['universities'][0]['addresses'],[],title)
+
+    def test_unlisted_campus_of_single_region_university_fills_existing_rows(self):
+        from publication_safety import verified_unknown_fill
+        old=dict(id='a',title="계명대 AI 대전환 선언",body='계명대가 성서캠퍼스에서 AI 비전 선포식을 열었다.',url='https://example.com/a',regions=[])
+        self.assertTrue(verified_unknown_fill(old,reclassify_article(old)))
+
+    def test_unlisted_campus_of_multi_campus_university_is_not_guessed(self):
+        row=classify('한양대 알수없음캠퍼스 연구 발표')
+        self.assertEqual(row['regions'],[])
+
+    def test_campus_name_of_another_university_is_not_used(self):
+        row=classify('고려대·중앙대 공동 연구, 흑석캠퍼스에서 발표')
+        schools={u['name']:u['regions'] for u in row['universities']}
+        self.assertEqual(schools['중앙대학교'],['서울'])
+        self.assertEqual(schools['고려대학교'],['서울','세종'])
+
+    def test_named_hospitals(self):
+        self.assertEqual(classify('인제대 해운대백병원, 평가 1등급')['regions'],['부산'])
+        self.assertEqual(classify('연세대 용인세브란스병원, 건강강좌 개최')['regions'],['경기도'])
+
+
+class UnlistedCampusGuardTests(unittest.TestCase):
+    def test_gachon_medical_campus_is_incheon(self):
+        row=classify("인천시, 가천대 메디컬캠퍼스서 '전국 인설 차문화전' 개최")
+        self.assertEqual((row['regions'],row['classification_confidence']),(['인천'],'confirmed'))
+        self.assertEqual(classify('가천대 글로벌캠퍼스 축제')['regions'],['경기도'])
+        self.assertEqual(classify('가천대 연구팀 기술 개발')['regions'],['경기도','인천'])
+
+    def test_separate_campus_words_are_not_given_the_main_region(self):
+        for title in ('계명대 메디컬캠퍼스 개소','동아대 글로벌캠퍼스 행사','울산대 제2캠퍼스 조성'):
+            self.assertEqual(classify(title)['regions'],[],title)
+
+    def test_place_name_of_another_region_is_not_given_the_main_region(self):
+        self.assertEqual(classify('계명대 송도캠퍼스 개교')['regions'],[])
+        self.assertEqual(classify('계명대 성서캠퍼스 행사')['regions'],['대구'])
+
+    def test_other_region_in_article_blocks_single_region_guess(self):
+        self.assertEqual(classify('부산시, 계명대 성서캠퍼스와 행사')['regions'],[])
+
+
+class TitleRevisionTests(unittest.TestCase):
+    def test_confirmed_version_wins_when_inside_the_other_estimate(self):
+        from publication_safety import version_decision, verified_unknown_fill
+        old=dict(id='a',title='고려대 안암캠퍼스 내부에 20대 나체남 출몰',body='',url='https://example.com/a',regions=[])
+        raw=dict(old,pending_update=dict(title='연세대 이어 이번엔 고려대…대낮 캠퍼스 알몸 활보한 20대男'))
+        self.assertEqual(version_decision(old,raw)['regions'],['서울'])
+        self.assertTrue(verified_unknown_fill(old,version_decision(old,raw),raw))
+
+    def test_conflicting_versions_are_not_filled(self):
+        from publication_safety import version_decision, verified_unknown_fill
+        old=dict(id='a',title='고려대 세종캠퍼스 행사',body='',url='https://example.com/a',regions=[])
+        raw=dict(old,pending_update=dict(title='고려대 안암캠퍼스 행사'))
+        self.assertIsNone(version_decision(old,raw))
+        self.assertFalse(verified_unknown_fill(old,reclassify_article(old),raw))
+
+    def test_url_change_is_not_treated_as_same_article(self):
+        from publication_safety import version_decision
+        old=dict(id='a',title='고려대 안암캠퍼스 행사',body='',url='https://example.com/a',regions=[])
+        raw=dict(old,pending_update=dict(title='고려대 세종캠퍼스 행사',url='https://example.com/b'))
+        self.assertEqual(version_decision(old,raw)['regions'],['서울'])
+
+
+class ConsistencyPolicyTests(unittest.TestCase):
+    def test_school_level_rows_widen_after_directory_change(self):
+        from publication_safety import estimate_policy_update
+        old=dict(id='a',title='가천대 반도체 아카데미 21명 수료',body='',url='https://example.com/a',regions=['경기도'],
+                 universities=[dict(name='가천대학교',campus_status='not_specified')])
+        self.assertTrue(estimate_policy_update(old,reclassify_article(old)))
+        foreign=dict(old,title='명지대 대학원생 미국 연수 선정',regions=['해외'],universities=[dict(name='명지대학교',campus_status='not_specified')])
+        self.assertTrue(estimate_policy_update(foreign,reclassify_article(foreign)))
+
+    def test_rows_with_campus_or_hospital_evidence_are_not_widened(self):
+        from publication_safety import estimate_policy_update
+        old=dict(id='a',title='가천대 반도체 아카데미 수료',body='',url='https://example.com/a',regions=['경기도'],
+                 universities=[dict(name='가천대학교',campus_status='matched',campus_names=['글로벌캠퍼스'])])
+        self.assertFalse(estimate_policy_update(old,reclassify_article(old)))
+
+    def test_campus_place_evidence_corrects_school_level_region(self):
+        from publication_safety import verified_campus_correction
+        old=dict(id='a',title="전남대 대학원, 연구성과 나누는 ‘2026 용봉학술제’ 개최",body='',url='https://example.com/a',regions=['광주','전남'])
+        self.assertTrue(verified_campus_correction(old,reclassify_article(old)))
+        mention=dict(old,title='경기도, 청소년과 함께 서울대학교 탐방',regions=['경기도','서울'])
+        self.assertFalse(verified_campus_correction(mention,reclassify_article(mention)))
+
+
 class ExistingCorrectionTests(unittest.TestCase):
     def row(self,title,regions):
         return dict(id='a',title=title,body='',url='https://example.com/a',regions=regions)
