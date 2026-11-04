@@ -40,6 +40,24 @@ function selectPublicRepresentatives(rows,groups=[]){
  }
  return rows.filter(row=>!hidden.has(row.id)).map(row=>replacements.get(row.id)||row);
 }
+// 대학 로고는 university-logos.js에 등록된(사용 조건이 확인된) 것만 씁니다.
+// 대학이 하나로 확인된 기사만 로고를 붙이고, 캠퍼스 전용 로고는 기사에서 그 캠퍼스가 확인될 때만 씁니다.
+const DEFAULT_UNIVERSITY_MARK='<svg class="mark-default" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2.5 8v2h19V8L12 3Zm-7 9v6h2v-6H5Zm4 0v6h2v-6H9Zm4 0v6h2v-6h-2Zm4 0v6h2v-6h-2ZM3 20v2h18v-2H3Z" fill="currentColor"/></svg>';
+function findUniversityLogo(article,registry){
+ const entries=Array.isArray(registry?.entries)?registry.entries:[];
+ const schools=(article.school_names||[]).filter(name=>name&&!['대학명 미확인','대학 일반'].includes(name));
+ if(schools.length!==1)return null;
+ const school=schools[0];
+ const valid=entry=>entry&&typeof entry.file==='string'&&/^logos\/[\w.\-\/]+\.(?:svg|png|webp|jpg)$/i.test(entry.file)&&!entry.file.includes('..');
+ const candidates=entries.filter(entry=>valid(entry)&&(entry.school===school||(entry.aliases||[]).includes(school)));
+ const campuses=new Set((article.universities||[]).filter(u=>u.name===school&&['matched','region_only'].includes(u.campus_status)).flatMap(u=>u.campus_names||[]));
+ return candidates.find(entry=>entry.campus&&campuses.has(entry.campus))||candidates.find(entry=>!entry.campus)||null;
+}
+function universityMarkHtml(article,registry){
+ const logo=findUniversityLogo(article,registry);
+ if(!logo)return `<div class="university-mark" aria-hidden="true">${DEFAULT_UNIVERSITY_MARK}</div>`;
+ return `<div class="university-mark has-logo" aria-hidden="true"><img src="${escapeHtml(logo.file)}" alt="" loading="lazy" decoding="async"></div>`;
+}
 function normalizeSearch(value){return String(value||'').normalize('NFKC').toLowerCase().replace(/\s+/g,'');}
 function matchesSearch(article,query){
  if(!query.trim())return true;
@@ -167,8 +185,9 @@ function render(){
  $('savedCount').textContent=news.filter(isArticleSaved).length;$('allNews').classList.toggle('active',!state.savedOnly);$('savedNews').classList.toggle('active',state.savedOnly);
  $('newsList').replaceChildren(...rows.slice(0,state.limit).map(n=>{
  const card=document.createElement('article');card.className='news-card';
- const tone=n.region==='서울'?'#355d86':'#38664f';
- card.innerHTML=`<div class="university-mark" style="--tone:${tone};--tint:${n.region==='서울'?'#edf2f8':'#eef3ed'}" aria-hidden="true">${escapeHtml(n.mark)}</div><div class="card-main"><div class="meta"><strong>${escapeHtml(n.school)}</strong><span class="dot">·</span><span>${escapeHtml(n.city)}</span><span class="dot">·</span><span>${escapeHtml(n.source)}</span></div><button class="title-button">${escapeHtml(n.title)}</button><p class="excerpt">${escapeHtml(n.body)}</p><div class="published-at"><span>게시</span><time datetime="${escapeHtml(n.date)}">${escapeHtml(dateLabel(n.date))}</time><span class="timezone-label">한국 시간</span></div><span class="tag">${escapeHtml(n.category)}</span></div><button class="bookmark${isArticleSaved(n)?' saved':''}" aria-label="${escapeHtml(n.school)} 소식 ${isArticleSaved(n)?'저장 해제':'저장'}" aria-pressed="${isArticleSaved(n)}">${isArticleSaved(n)?'★':'☆'}</button>`;
+ card.innerHTML=`${universityMarkHtml(n,window.UNIVERSITY_LOGOS)}<div class="card-main"><div class="meta"><strong>${escapeHtml(n.school)}</strong><span class="dot">·</span><span>${escapeHtml(n.city)}</span><span class="dot">·</span><span>${escapeHtml(n.source)}</span></div><button class="title-button">${escapeHtml(n.title)}</button><p class="excerpt">${escapeHtml(n.body)}</p><div class="published-at"><span>게시</span><time datetime="${escapeHtml(n.date)}">${escapeHtml(dateLabel(n.date))}</time><span class="timezone-label">한국 시간</span></div><span class="tag">${escapeHtml(n.category)}</span></div><button class="bookmark${isArticleSaved(n)?' saved':''}" aria-label="${escapeHtml(n.school)} 소식 ${isArticleSaved(n)?'저장 해제':'저장'}" aria-pressed="${isArticleSaved(n)}">${isArticleSaved(n)?'★':'☆'}</button>`;
+ // 로고 파일을 불러오지 못하면 기본 아이콘으로 바꿉니다.
+ card.querySelector('.university-mark img')?.addEventListener('error',event=>{const mark=event.target.parentElement;mark.classList.remove('has-logo');mark.innerHTML=DEFAULT_UNIVERSITY_MARK;},{once:true});
  card.querySelector('.title-button').onclick=()=>{$('detailTitle').textContent=n.title;$('detailMeta').textContent=`${n.school} · ${n.city} · ${n.source} · ${dateLabel(n.date)}`;$('detailBody').textContent=n.body;showUniversityAddresses(n);$('official').href=n.original_url||n.url;$('official').textContent=n.via_google&&!n.original_url?'기사 보기 (구글 뉴스) ↗':'기사 원문 보기 ↗';$('detail').showModal();};
  card.querySelector('.bookmark').onclick=()=>{if(isArticleSaved(n)){for(const id of n.duplicate_ids||[n.id])saved.delete(id);}else saved.add(n.id);try{localStorage.setItem('campus-on-saved',JSON.stringify([...saved]));}catch{}render();};return card;
  }));$('empty').hidden=rows.length>0;$('more').hidden=rows.length<=state.limit;
