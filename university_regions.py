@@ -101,6 +101,10 @@ for national in list(REGISTRY):
             if not any(r['address']==record['address'] for r in entries):entries.append(record)
         REGISTRY[national]=sorted(set(REGISTRY[national])|set(REGISTRY.pop(base)))
 REGISTRY['한국폴리텍대학']=[]  # 캠퍼스가 명시되지 않으면 소재지를 임의 지정하지 않습니다.
+# '고대'를 고려대로 볼 수 있는 바로 뒤 문맥입니다('고대 캠퍼스서', '고대생', '고대 안암병원', '연세대·고대').
+KOREA_UNIV_SHORT_CONTEXT = (r'\s*(?:캠퍼스|캠(?![가-힣])|안암|세종|서울|생|학생|교수|총장|연구|의대|의과|의료원|병원|동문|교우|학보|신문|축제|'
+                            r'입실렌티|정기전|고연전|연고전|출신|측|팀|선수|농구|야구|럭비|아이스하키|축구)'
+                            r'|(?:는|은|가|의|와|과|를|에서|서)(?![가-힣])|\s*[,·ㆍ…)\]\-]|\s*$')
 for supplement in SUPPLEMENTS:
     entries = ADDRESS_RECORDS.setdefault(supplement['name'], [])
     if not any(r['address'] == supplement['address'] for r in entries):
@@ -237,6 +241,9 @@ def select_alias_name(match,text):
     if re.search(r'(?:타슈켄트|하노이|호찌민|호치민)\s*$',before):return None
     if key=='교통대' and re.search(r'(?:상하이|베이징|시안|서안|중국)\s*$',before):return None
     if key in ('국제대','국제대학교') and re.match(r'\s*\(\s*VNU[-\s]?HCM',tail,re.I):return None
+    # '고대'는 고려대 줄임말이지만 '고대 이집트'·'고대 문명'·'고대하던'의 고대(古代·苦待)와 같습니다.
+    # 뒤에 캠퍼스·학생·교수 같은 대학 문맥이나 조사·구분 기호가 올 때만 고려대로 봅니다.
+    if key=='고대' and not re.match(KOREA_UNIV_SHORT_CONTEXT,tail):return None
     if len(candidates)==1:return next(iter(candidates))
     if not re.match(r'^(?:$|[^가-힣A-Za-z]|(?:는|은|가|의|와|과|를|에|에서)(?=$|[^가-힣A-Za-z])|총장|교수|학생)',tail):return None
     explicit={ALIASES[compact(m.group())] for m in PATTERN.finditer(text) if compact(m.group()) in ALIASES}
@@ -371,6 +378,10 @@ def resolve_universities(text):
             records=ADDRESS_RECORDS[name]
             results.append(dict(name=name,regions=sorted({r['region'] for r in records}),records=records,campus_cue_evidence=[],
                                 campus_names=[label],campus_region_evidence=[],campus_status='matched'))
+        else:
+            # '한국폴리텍Ⅵ대학'처럼 학교 번호만 있으면 그 학교 캠퍼스들의 지역을 후보로 씁니다(캠퍼스 미특정 추정).
+            records=polytech_college_records(text)
+            if records:umbrella.update(records=records,regions=sorted({r['region'] for r in records}))
     if any(u['name'].startswith('한국폴리텍') and u['name']!='한국폴리텍대학' for u in results):
         results=[u for u in results if u['name']!='한국폴리텍대학']
     return results
@@ -385,6 +396,20 @@ def polytech_campus_in_text(text):
           and (not numeral or f' {numeral.group(1).upper()} ' in name)
           and any(re.sub(r'\s+','',r.get('original_name','')).endswith(label+'캠퍼스') for r in records)}
     return next(iter(hits)) if len(hits)==1 else None
+
+
+def polytech_college_records(text):
+    """'폴리텍Ⅵ대학'·'폴리텍 VI대학'의 학교 번호에 속한 주소록 캠퍼스들. 번호가 없으면 빈 목록입니다."""
+    numeral=re.search(r'폴리텍\s*(VII|VI|IV|V|III|II|I)\s*대학',unicodedata.normalize('NFKC',text),re.I)
+    if not numeral:return []
+    return [record for name,records in ADDRESS_RECORDS.items()
+            if name.startswith('한국폴리텍') and f' {numeral.group(1).upper()} 대학' in name for record in records]
+
+
+def polytech_records_in(regions):
+    """주어진 시·도에 있는 폴리텍 캠퍼스 주소 레코드."""
+    return [record for name,records in ADDRESS_RECORDS.items()
+            if name.startswith('한국폴리텍') and name!='한국폴리텍대학' for record in records if record['region'] in regions]
 
 
 def unlisted_campus_is_local(label, region):
@@ -656,6 +681,12 @@ def apply_region_priority(universities,mentioned,title='',summary=''):
                     university.update(regions=[],campus_region_evidence=[],region_resolution='campus_unverified')
         elif status=='not_specified' and len(candidates)==1:
             university['region_resolution']='unique_verified_location' if university['records'] else 'legacy_registry'
+        elif (university['name']=='한국폴리텍대학' and status=='not_specified' and len(candidates)>1
+              and candidates&{p['region'] for p in domestic_mentions}):
+            # '대구 북구-폴리텍Ⅵ대학'처럼 학교 번호의 캠퍼스 지역 중 기사 지역과 겹치는 곳만 추정으로 남깁니다.
+            overlap=candidates&{p['region'] for p in domestic_mentions}
+            university.update(regions=sorted(overlap),records=[r for r in university['records'] if r['region'] in overlap],
+                              region_resolution='campus_candidates')
         elif status=='not_specified' and len(candidates)>1:
             places=campus_place_evidence(university,title,summary)
             intersection=candidates&article_regions
@@ -678,6 +709,12 @@ def apply_region_priority(universities,mentioned,title='',summary=''):
         elif university['name']=='한국폴리텍대학' and status=='not_specified' and not domestic_mentions:
             # 캠퍼스 없이 대표명만 쓴 기사는 특정 지역이 아니라 전국 단위입니다.
             university.update(regions=['전국'],candidate_regions=['전국'],region_resolution='national_network')
+        elif university['name']=='한국폴리텍대학' and status=='not_specified' and polytech_records_in({p['region'] for p in domestic_mentions}):
+            # '대구 북구·폴리텍대학'처럼 기사 지역에 폴리텍 캠퍼스가 있으면 그 지역 캠퍼스를 후보로 씁니다.
+            # 협력 기관 소재지일 수 있어 확정하지 않고 캠퍼스 미특정 추정으로 기록합니다.
+            records=polytech_records_in({p['region'] for p in domestic_mentions})
+            university.update(records=records,regions=sorted({r['region'] for r in records}),
+                              candidate_regions=sorted({r['region'] for r in records}),region_resolution='campus_candidates')
         else:
             university['region_resolution']='campus_unverified' if status=='unresolved' else 'location_unavailable'
         result.append(university)

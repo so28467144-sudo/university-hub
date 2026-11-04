@@ -155,7 +155,29 @@ class NoUniversityStoryTests(unittest.TestCase):
         for title in ('한국폴리텍대학, 직업교육과정 5천590명 모집','폴리텍대학, 현장 안전 핸드북 전국 배포','전국 대학 총장 협의회 개최'):
             row=classify(title)
             self.assertEqual((row['regions'],row['classification_method']),(['전국'],'national_scope'),title)
-        self.assertEqual(classify('영천시·한국폴리텍대학 로봇산업 업무협약')['regions'],[])
+        # 기사 지역에 폴리텍 캠퍼스가 있으면 그 지역을 추정으로 표시합니다. 협력 기관 소재지일 수 있어 확정하지 않습니다.
+        for title,region in (('영천시·한국폴리텍대학 로봇산업 업무협약','경북'),('대구 북구·폴리텍대학, 노후 산단 경쟁력 강화 맞손','대구')):
+            row=classify(title)
+            self.assertEqual((row['regions'],row['classification_method'],row['classification_confidence']),([region],'multi_campus_estimate','estimated'),title)
+        self.assertEqual(classify('세종시·한국폴리텍대학 협약')['regions'],[])
+
+    def test_numbered_polytechnic_college_uses_its_campus_regions(self):
+        # 기사 지역이 학교 번호의 캠퍼스 지역과 겹치면 그 지역으로 좁힙니다.
+        for title,regions in (('한국폴리텍Ⅵ대학-대구광역시 북구청, 업무협약 체결',['대구']),('한국폴리텍Ⅵ대학, 지역산업 인력 양성',['경북','대구']),
+                              ('한국폴리텍 VII 대학, 조선업 인력 양성',['경남','부산','울산'])):
+            row=classify(title)
+            self.assertEqual((row['regions'],row['classification_confidence']),(regions,'estimated'),title)
+
+    def test_go_dae_means_korea_university_only_in_university_context(self):
+        for title in ('고대 캠퍼스서 나체男 활보... 공연음란 혐의 입건','2026년 고려대의 위상을 고대생 100인에게 다시 묻다',
+                      '서울대 줄고 고대·연대 늘어','가온에프앤에스, 고대 세종캠퍼스에 천원의 아침밥 지원금 기부'):
+            self.assertIn('고려대학교',classify(title)['school_names'],title)
+        for title in ('고대 이집트 유물 특별전','고대 문명과 현대 기술','오랫동안 고대하던 신축 기숙사 완공','고대 그리스 철학 강좌 개설'):
+            self.assertNotIn('고려대학교',classify(title)['school_names'],title)
+
+    def test_official_name_aliases_are_recognized(self):
+        for title,school in (('국립목포해양대학교 ‘2026년 해성대동제’ 10일 개막','목포해양대학교'),('승강기대학, 인식개선 교육 실시','한국승강기대학교')):
+            self.assertEqual(classify(title)['school_names'],[school],title)
 
     def test_polytechnic_spellings_and_campus(self):
         for title,region in (('폴리텍Ⅳ 캡스톤 경진대회…청주캠퍼스서 대상 수상','충북'),
