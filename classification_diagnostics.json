@@ -1,10 +1,10 @@
 {
   "total": 5000,
-  "classified": 4840,
-  "unclassified": 160,
-  "unclassified_percent": 3.2,
+  "classified": 4841,
+  "unclassified": 159,
+  "unclassified_percent": 3.18,
   "failure_reason_counts": {
-    "대학명 인식 실패": 151,
+    "대학명 인식 실패": 150,
     "대학 주소록 미등록": 40,
     "대학명 중복 또는 모호함": 2,
     "캠퍼스 특정 불가": 4,
@@ -464,6 +464,160 @@
   "reason_counts_overlap": true,
   "articles": [
     {
+      "id": "48c0ba31946f654884cac819",
+      "title": "경기도, 청소년 사다리 참가자 대상 고려대학교 캠퍼스 탐방",
+      "url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxNdXVtRGNDWHV5RUk4LUllQ2ZrUmJXM1M4by1UdlRYWlZnS3Y5TGdCeDR0b3RwTTk5dkVHbGg4cGpYcXQtQldjMElRRjl5eGhjcDNxRnFfb1dWa2FUcDdUZGtpb2h2cFlLWHhzczgtWXduZlBUVXRjNkF3NUduc2J2TmNpRVQ?oc=5",
+      "extracted_universities": [
+        "고려대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "고려대학교",
+          "matched": true,
+          "candidate_regions": [
+            "서울",
+            "세종"
+          ],
+          "region_resolution": "campus_candidates"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "고려대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학 소재지와 기사 지역 불일치"
+      ],
+      "classified": true,
+      "result": [
+        "서울",
+        "세종"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": [
+        {
+          "region": "경기도",
+          "text": "경기도",
+          "method": "title_region",
+          "role": "article_context",
+          "location_universities": []
+        }
+      ]
+    },
+    {
+      "id": "9347cfa2d6d21e2680650bc1",
+      "title": "[빅데이터로본다] 대학교 2026년 11월 브랜드평판... 1위 서울대학교, 2위 성균관대학교, 3위 연세대학교",
+      "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE5tOVUwS1lZTDlBWVZIZXpqUktGYkxWT2JneGk3YWtCUDJyUWlDWEZmNzl4NEJ5Q05FcTI0WGcxYkNrcWhqR0FMYUVBbFhZLTNUQ0ZlajZhQlpHQmR2LUxlanpmU0otUnNkRFgw?oc=5",
+      "extracted_universities": [
+        "서울대학교",
+        "성균관대학교",
+        "연세대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "서울대학교",
+          "matched": true,
+          "candidate_regions": [
+            "서울"
+          ],
+          "region_resolution": "unique_verified_location"
+        },
+        {
+          "name": "성균관대학교",
+          "matched": true,
+          "candidate_regions": [
+            "경기도",
+            "서울"
+          ],
+          "region_resolution": "campus_candidates"
+        },
+        {
+          "name": "연세대학교",
+          "matched": true,
+          "candidate_regions": [
+            "강원",
+            "서울",
+            "인천"
+          ],
+          "region_resolution": "campus_candidates"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "서울대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        },
+        {
+          "name": "성균관대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        },
+        {
+          "name": "연세대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [
+        "기사에 여러 대학 등장"
+      ],
+      "classified": true,
+      "result": [
+        "강원",
+        "경기도",
+        "서울",
+        "인천"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "5e6ebb65eb58e8d64704abdd",
+      "title": "도림사 불교대학, 대구 노인복지관서 배식 봉사",
+      "url": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE9BRkIxWV8yQlE1UTMzSDRDY1VQN2M4cW5pTWhCTmZaQ2c1SVBacVR1VzZkX0pCNVU0aW9RczdyaHFuSk9UWFhVblpDbklFV1hnVng1d0lUOG5XTUNzM0Zv?oc=5",
+      "extracted_universities": [
+        "불교대학"
+      ],
+      "directory_matches": [
+        {
+          "name": "불교대학",
+          "matched": false,
+          "candidate_regions": [],
+          "region_resolution": "directory_missing"
+        }
+      ],
+      "campus_checks": [],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학명 인식 실패",
+        "대학 주소록 미등록"
+      ],
+      "classified": true,
+      "result": [
+        "대구"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [
+        "불교대학"
+      ],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
       "id": "e048c5bc05711eb79304e1d1",
       "title": "서울대 출신 엔지니어가 지게차에 ‘일머리’ 심자 벌어진 일",
       "url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxQem82cndHS2JTTFNNWTRCQjVDbk85VVlzd3pEcXZiQTRSM3ZnS2RZUnhZTlZncTBCNm5sQVFSOE9LOXhZejZZMlpCMnlnRDRUM2ZoY3QzaE43VVhGZ3dtcE56YXUxOWxwaDN3Q0RUb0JrSGJJOEtzcmJUNE9NX1dZR0MxZVhzbVhwV01Z?oc=5",
@@ -553,6 +707,26 @@
       "classified": true,
       "result": [
         "해외"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "0852da5018d9a2ad54dfac2c",
+      "title": "대구, 대학 로컬크리에이터 아이디어 경진대회 개최:장애인인식개선신문",
+      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFAtTXd2VGZURU4zOWctSjFPbHc2Ty13UHhwamdFam8tWnBDT2M5Vk15YWp5NENiRF9DamIxaHZGMF9JTXRrUXhwZTZaLTcxa0nSAV9BVV95cUxPQ2NEekxXMTJ6NXc2NDJONDVqM2p3VjUzakUtRnVIbll1OG5mYVpCV3o1MTMzaC1ldUdKa01kUWYzeVFzVTNUUG5ybGJland1eFdkYWxxU0R4X09DSVFmdw?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": true,
+      "result": [
+        "대구"
       ],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
@@ -11412,6 +11586,42 @@
       "classified": true,
       "result": [
         "대구"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "df082d3c838ee60cca464ff2",
+      "title": "충남도립대, 배움으로 세대 잇고 지역에 활력 더하다",
+      "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5uRzViMmNmQW9SdVE2dXlCQnJWckhfMURaWHVYcURISVlBRkMtWS12Z2NKUkdUSzFndzBPRGdIMlVHMS1POW5HUXlHb1FHMzZDMldoemZkYjR6ck1FZ2tWbV83Nk8wLURT?oc=5",
+      "extracted_universities": [
+        "충남도립대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "충남도립대학교",
+          "matched": true,
+          "candidate_regions": [
+            "충남"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "충남도립대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "충남"
       ],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
@@ -184964,194 +185174,6 @@
       "result": [
         "대전"
       ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "682d975f3e1de69922543002",
-      "title": "대신대, ‘AI 외국어 플랫폼’ 가동…AI 튜터, 122개국 외국어 맞춤형 지도",
-      "url": "https://www.kyosu.net/news/articleView.html?idxno=212062",
-      "extracted_universities": [
-        "대구외국어대학교",
-        "대신대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "대신대학교",
-          "matched": true,
-          "candidate_regions": [],
-          "region_resolution": "campus_unverified"
-        },
-        {
-          "name": "대구외국어대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경북"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "대신대학교",
-          "campuses": [
-            "글로벌캠퍼스"
-          ],
-          "status": "unresolved",
-          "confirmed": false
-        },
-        {
-          "name": "대구외국어대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [
-        "캠퍼스 특정 불가",
-        "기사에 여러 대학 등장"
-      ],
-      "classified": true,
-      "result": [
-        "경북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [
-        "대신대학교"
-      ],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "9ee7b1dddf58882720d410ed",
-      "title": "대신대, ‘AI 외국어 플랫폼’ 가동…AI 튜터, 122개국 외국어 맞춤형 지도",
-      "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTFA0SVJPMlo0SkJHeHNnZjViYjRtVnBtWFZpVkIyOXNrY3doRDlIZ2pIVzE2X0s3Ynp0dHN1NEZhTnlHVDZuT3BaUnpZMW0xaEhtQTBSSnoxNkMyeUFUQjhqUXBoWkdNczA?oc=5",
-      "extracted_universities": [
-        "대신대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "대신대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경북"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "대신대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "d4f7a9a34c7ecb6f8144cf65",
-      "title": "경북도 45년 숙원 풀렸다… ‘국립경국대 의과대학’ 신설 최종 확정",
-      "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE9pR1R1ZGVHSE8ydU9URFdINnJ3T3Z4Snd1M1Q0ek5aMm9aOV9BTDFVT3dzVGMyeHZmMDl6MUc4dmY4elJEd19WWGJiallqbnZFdGxjMkt6bjNFVU5YdTVXYWdYZjRoZG5rbDFJTThn?oc=5",
-      "extracted_universities": [
-        "국립경국대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "국립경국대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경북"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "국립경국대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "fc68711249d21024ffd2eda5",
-      "title": "연세대학교 김원석 교수팀, 삼각주 커질수록 진흙 쌓이는 원리 규명…퇴적 메커니즘 새롭게 밝혀",
-      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5vbkRtSEZBZWRPallCamM0ZXdJMVNONE5mZUI4TnZiNGZfTWVfdldNd2ZWZVR3QmVISEtqM2RpRGtEOXFXU3IzUFQ5WHdSd29CSldBeTdnVFUycDdzNC1PQUlmYVJfU3ZfblJnMVVEclk?oc=5",
-      "extracted_universities": [
-        "연세대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "연세대학교",
-          "matched": true,
-          "candidate_regions": [
-            "강원",
-            "서울",
-            "인천"
-          ],
-          "region_resolution": "campus_candidates"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "연세대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "강원",
-        "서울",
-        "인천"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "008e982895eb24e5f6e879fb",
-      "title": "대학·공공연구기관 유망기술, 기업 수요에 연결한다",
-      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9oSUJRYktXZjJuMzdJREtHTlZFT0ZpaXNnUjdKMzBFT0N1b2FkZTU2SnJEc0JyTGZCVURKNE9ub2xjVlA2Z2lEMnRDVVFLNEZLOHFqQ19XZW9NX2FVUUVOa0JHWG9WWnBtV0NrWWJEZ3PSAXBBVV95cUxPaElCUWJLV2YybjM3SURLR05WRU9GaWlzZ1I3SjMwRU9DdW9hZGU1NkpyRHNCckxmQlVESjRPbm9sY1ZQNmdpRDJ0Q1VRSzRGSzhxakNfV2VvTV9hVVFFTmtCR1hvVlpwbVdDa1liRGdz?oc=5",
-      "extracted_universities": [],
-      "directory_matches": [],
-      "campus_checks": [],
-      "failure_reasons": [
-        "대학명 인식 실패"
-      ],
-      "review_reasons": [
-        "대학명 인식 실패"
-      ],
-      "classified": false,
-      "result": [],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
       "background_universities": [],
