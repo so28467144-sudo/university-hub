@@ -1,10 +1,10 @@
 {
   "total": 5000,
-  "classified": 4824,
-  "unclassified": 176,
-  "unclassified_percent": 3.52,
+  "classified": 4822,
+  "unclassified": 178,
+  "unclassified_percent": 3.56,
   "failure_reason_counts": {
-    "대학명 인식 실패": 173,
+    "대학명 인식 실패": 175,
     "대학 주소록 미등록": 35,
     "대학명 중복 또는 모호함": 6,
     "캠퍼스 특정 불가": 1,
@@ -530,6 +530,144 @@
   "reason_counts_overlap": true,
   "articles": [
     {
+      "id": "87278c1ef9b33494086cce39",
+      "title": "김대종 세종대 교수, 부산상의서 2027년 경제 전망·중소기업 생존전략 강연",
+      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5ZMnpONTFjNGFNbHJTNVV5TFY5S3ZXcVRiR0hqejlYZmJDdkFWOTJoenJZazcwOEdUVkM3RUNUUVQxTk1GVDhmajZyWFBlaHctdDhhdTltY1FpSFVodXBrUVkza2pPTnlhN0lkQ01FdFTSAXRBVV95cUxOSmxPZU44aTlZUFhWVmd2UXdVazZoNGxudG1Wa1NYcEpVbnpFNGNDSG5aX1RRcEZEUkVHZ3QxX2prTjFSbmZLUzJZWlRNLVRTUlJ3bGJ1SVpBaFMzMDFrbVhQdGpBZWE1YXdXQUNzaHhIZUNtVA?oc=5",
+      "extracted_universities": [
+        "세종대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "세종대학교",
+          "matched": true,
+          "candidate_regions": [
+            "서울"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "세종대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학 소재지와 기사 지역 불일치"
+      ],
+      "classified": true,
+      "result": [
+        "서울"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": [
+        {
+          "region": "부산",
+          "text": "부산",
+          "method": "title_region",
+          "role": "article_context",
+          "location_universities": []
+        }
+      ]
+    },
+    {
+      "id": "3d3cd3a16ce783cef50da1c3",
+      "title": "충남도립대학교 ‘청춘불패 페스타’ 성황리에 마무리…대운동장서 지역 주민·청년 참여",
+      "url": "https://news.google.com/rss/articles/CBMiWEFVX3lxTE5QZVZvV19sMkdOQWsySGhEdTZtdWJDLXJXcllxb3hvdlowc0RLaG9Ucm1keUttNnJHRnFSVzczYXBBTzVxdDZuWDNxRW16ZjBwOVlxUjlSTWk?oc=5",
+      "extracted_universities": [
+        "충남도립대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "충남도립대학교",
+          "matched": true,
+          "candidate_regions": [
+            "충남"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "충남도립대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "충남"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "f1eeaa39fd13980cbe2bab3f",
+      "title": "경기문화재단 경기창작캠퍼스, 문화소외지역 예술교육…:사회공헌 실천\"",
+      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTE56UU5jMXlQcEJzYkJ2SjRQenhORjYzZDlBQ0hDc3pCcDFtNDAtcHBVeTdPT3RPR3dkRlpvS1RHMmtqRkxLQW5rbVYxTXpjLUZLdlU1RmVoMkNRRFdiN21tc3BRWUxTam1rM1E?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": true,
+      "result": [
+        "경기도"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "fdbb3cb7f64baf4a83ac9db9",
+      "title": "대구보건대학교, 대구 문화자산 연계 교양과목 \" 런케이션 \" 운영 !!",
+      "url": "https://news.google.com/rss/articles/CBMib0FVX3lxTE9GOU8tR2dJMVFNOHVpUm5IaDBaV2VYeDlqTEJiLU9Bb1BjNW9lQXlCSmVxU1ZKZW1ZWjU3TXEzNkZ2c1ZCR1I3dEtObVJsUF9FZzZ6Q0hxZ2ZZRG5rMnNDMXd3TEV4QnZ6X2ZNbUZfNA?oc=5",
+      "extracted_universities": [
+        "대구보건대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "대구보건대학교",
+          "matched": true,
+          "candidate_regions": [
+            "대구"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "대구보건대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "대구"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
       "id": "3326bd972f4406bcbae49909",
       "title": "대구한의대, 대구가톨릭대와 연합 김장김치 나눔 봉사 진행 !!",
       "url": "https://news.google.com/rss/articles/CBMib0FVX3lxTE5zaXlablRLOUc3TDdVZHBYdDZLclo1VFNRYkc4M0dhcnR4UmppcGtPR1k2Mmw2Ri1NWHZLZ1VteU16ZFlVTGsxYURmbmgwWVFQTnFkMWttdk9GUldzSzFKZ3ViQlNGZjlYUkJEQTUzOA?oc=5",
@@ -576,6 +714,134 @@
       "classified": true,
       "result": [
         "경북"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "6d141092bf6b017bb7406f68",
+      "title": "한동대 대학일자리플러스센터, 지역 청년 맞춤형 면접 특강 성황",
+      "url": "https://news.google.com/rss/articles/CBMiX0FVX3lxTFA3SVBSazg0Y2tNNUJlMlpSQ3l3a1I4N3ZwRkdSLWRUYnE2bDM1SVNaVXhWVF9jT0VVTWNnZkNFNVc1ZlRHeVZHcjNZWU5jdHpkSnlXQVhvb1J3NDFnaHdj?oc=5",
+      "extracted_universities": [
+        "한동대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "한동대학교",
+          "matched": true,
+          "candidate_regions": [
+            "경북"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "한동대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "경북"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "99f5fb8cd039999649b3f90d",
+      "title": "경기창작캠퍼스, 경기 서부 도서지역 대상 사회공헌 특별교육 프로그램 성료",
+      "url": "https://news.google.com/rss/articles/CBMiTEFVX3lxTE9EeTEyQzJlUGNMV3ZlOUtiM3VHOFFzT196TzV1Rm9QbUQxci1jNUlWRFFFV0lWRnpPU1dLcWtwVEk3ZGIyV1oxOFBCWmo?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": true,
+      "result": [
+        "경기도"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "6adb7e6463fd9e8ec30ff7bb",
+      "title": "강원경찰청·강원대 총학생회, 대학가 범죄 예방 프로젝트 'IT-DA' 추진 > 뉴스데스크",
+      "url": "https://news.google.com/rss/articles/CBMiS0FVX3lxTE5PeERBNURqUUJYSnVOd1lUOXh0MDE5cTVLQi1TOE1aWnZ0dzRCeG9ja1phSGg2a1pOcDJKT1c4U2RrQ0g4eUdBNXNuOA?oc=5",
+      "extracted_universities": [
+        "강원대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "강원대학교",
+          "matched": true,
+          "candidate_regions": [
+            "강원"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "강원대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "강원"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "cbec911cce8677d034751783",
+      "title": "성결대 총동문회, 11월 29일 주일을 성결대학교 후원 주일로 정해",
+      "url": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE9abExycWtmanRBeUJ2VTVLNkNvb0lmc3R2aDdMX3lUa1hUcnFMbnN0UkcxWUhaU05BMVFrTWdVUW9QcU1KcmdVb3hWRWlwWi1Kd3Rn?oc=5",
+      "extracted_universities": [
+        "성결대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "성결대학교",
+          "matched": true,
+          "candidate_regions": [
+            "경기도"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "성결대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "경기도"
       ],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
@@ -732,6 +998,64 @@
       "id": "3652b8bdabb03240b4e8a6a3",
       "title": "박동순 동서학원 이사장 “대학교육 창조적 파괴식 혁신해야”",
       "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPd0NkN2lCRTF0RXBOWGxRdm54TmU4SEtra3BxN0lySjctZ0Mwb2lrSVQ4d2xVOGZQREZfU1d6bGpCX3ZyZEs3UmY1Mmhnc2dGbUthQnNoY0RpWXd3SEJsdGRWWldaOUxXblJ2eHFTMFRTVkxKR1pLTEhRUEdZZzloT0Z5VnZDQU5ZV185ZTlR?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [
+        "대학명 인식 실패"
+      ],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": false,
+      "result": [],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "ffac15dfbc1ff962c4692d3a",
+      "title": "성균관대 도서관 ‘수은’ 추정 액체 발견…학생 대피 소동",
+      "url": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE4yemZfa1R0LUFyVlhCTzVkNmZsMXliSGJKWWM2aDAtMGtWSjVHODFKbThSMlJxVkUxelliMzJGV2pxTk04NWdBRjBqd0RCcTdsUWp6OA?oc=5",
+      "extracted_universities": [
+        "성균관대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "성균관대학교",
+          "matched": true,
+          "candidate_regions": [
+            "경기도",
+            "서울"
+          ],
+          "region_resolution": "campus_candidates"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "성균관대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "경기도",
+        "서울"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "a9840e43242545e074689c4a",
+      "title": "적십자 대학RCY 부산시협의회, 교촌F&B와 버스기사 치킨나눔",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxQLTNmcDlsWm9Ra1R0V0w4empubmVScHhpRTV0QzlJS2dLQmxfc1ltLWI1Nm1DdmxQSTVyTkExd3N0M043bWt1amFCN21pLUFfTGlLR1pmUlNNVXg5Nkg0azRxMkczRk5SY1c2OGg2VWE5LXdTVDhmMUd2QUt3WnljNDdpc3dZbDNVTU1NS0Zn?oc=5",
       "extracted_universities": [],
       "directory_matches": [],
       "campus_checks": [],
@@ -6363,6 +6687,26 @@
       "conflicting_region_evidence": []
     },
     {
+      "id": "726c1a870e295347548ef6e9",
+      "title": "교육부, 의과대학 교육의 새로운 변화, 우수사례 8편 선정",
+      "url": "https://news.google.com/rss/articles/CBMiS0FVX3lxTE1FZDllaUVpeXhCNzdSdUNwYWNBMURvUkR3a3BUSG01TF81akwyaGlFNVl0cGQtUEk0Sm5OdnpQajA5TUF0TnZCODNyRQ?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [
+        "대학명 인식 실패"
+      ],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": false,
+      "result": [],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
       "id": "345b355487082eb47a766bce",
       "title": "중앙대 총동문회, 자랑스러운 중앙인상에 최장수·김이수·박애리 동문",
       "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE5qcHVGS3JIcHAwZTZybVVKSThzZzFoaEttZHdoZTJQbUJPZnVlbllvNE90THd3X28xR1A5TEZsdGNxY0Nmb1BtMHdUcGNQZVpYQ0xEVGN0aVhaQW9NYllxWQ?oc=5",
@@ -10089,6 +10433,42 @@
       "classified": true,
       "result": [
         "전북"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "9474b09812c75407e0ebcf54",
+      "title": "세종대 세종뮤지엄갤러리 1관, ‘서울실경, 남도산천’ 조풍류 기획초대전 개최",
+      "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE5DaVphTFFMdUhZTEYyZnFwb0ZqdU9YbXRtZmg5by1oSWNLQjRsVUY4aDFqQk9hTXdRNUpsODZURjRvY0ZJQWxfcDFCNUR6amhTUDZBanBzdVRLQkpiTVJYc2d2aDlESFJKeTNTT05R0gFyQVVfeXFMT0VkZUk0aFA1WGlFaG5NZTZxQXlyOFl5ODdON2tNaHJZcmRtMEE5VXpTRkFvT3FvbU1YamdGNk40Slpablh4c2F4Q2UxeldRUC0tSTRiejJpZTVNcDJHeDJoakN1UGlwQUR4U0l0OXNrNHd3?oc=5",
+      "extracted_universities": [
+        "세종대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "세종대학교",
+          "matched": true,
+          "candidate_regions": [
+            "서울"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "세종대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "서울"
       ],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
@@ -17781,6 +18161,26 @@
       "conflicting_region_evidence": []
     },
     {
+      "id": "71d1dcae4287ae1ebabee90b",
+      "title": "부산 대학RCY, 버스기사님께 전하는 따뜻한 응원! ‘교촌 촌스러버’ 나눔활동 진행",
+      "url": "https://news.google.com/rss/articles/CBMiQ0FVX3lxTE5BZ0ZNYWxBYXVRNVhFNXVVTlVHM2RyQWtPZUgxVTFyMnFQc3lHMHFZb1FJODdSWXpWOFY3bWM4V3lWTUk?oc=5",
+      "extracted_universities": [],
+      "directory_matches": [],
+      "campus_checks": [],
+      "failure_reasons": [],
+      "review_reasons": [
+        "대학명 인식 실패"
+      ],
+      "classified": true,
+      "result": [
+        "부산"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
       "id": "64ba13555247c4b67a639163",
       "title": "호서대 경영학과, 제63회 세무사 시험 합격자 3명 배출… 누적 22명",
       "url": "https://news.google.com/rss/articles/CBMiwwJBVV95cUxPTExIVzVKUDVyY0tKMGFuUEhscF90d2ozdm5HMkdKZFJZbG5mb2c0VXlWQXBmdnNJNzFhWGJQMmpWNVVnR29WbXd1emE3WHRyM0dkcmRNZDMyX05sdTdpVDAzbG11dVJkRENNaHBtd1BPWmw5NGFKZkZnOFVzYklHWkhuamQ2dzB2RVNYRENFMzF3SjVqdHZBaHRLdm1RNi1MWW14LUdQUEVpQmNhWjF2RjQ1NmZaSEZRWUExMzFoa0ZCTm40S09rZ1RqYkh5Ul9IQ181MGNwaWduUEg1MmlBSEp3VGFQSjRwNGFLN01HTEV6VFlQVW5QeGtieGk1Zl9TRmtCR0JsNHN5R3lFcHdWQTFwYks0Z0hWbEJERzlNZEhrempXZ2FMUjZVUEJHZjk3UzZTMmk2S0pndU9VV1NJYTlrYw?oc=5",
@@ -17856,6 +18256,42 @@
       "id": "de05022e06164ed50f9ad6c6",
       "title": "부산혈액원, 동의대학교 학생 헌혈 참여 활성화 나서",
       "url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxQclQ3cGZPRWg1TVRDbVZoYmFLLWtrY21FRkRrOTRDS2R3VDdjLUFaQlh1NV9rTV9waGFXT0xTUnhPM3phaEJ3MnNmX0Fad1dDY1dsY21HNUg2eTBia05RQ1BvaXEzeGZSOFI0UVhwZ0k2NGdrLWpSZ21mMEJnQkJKMWE2NWVaV0pFdGpwUlRPWk1sWVRQaExEc1V2dEdiMUhQZ2J1c3BucUtXUQ?oc=5",
+      "extracted_universities": [
+        "동의대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "동의대학교",
+          "matched": true,
+          "candidate_regions": [
+            "부산"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "동의대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "부산"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "cd3022dbccadd73c44bfa179",
+      "title": "부산혈액원, 동의대학교 학생 헌혈 참여 활성화 나서",
+      "url": "https://news.google.com/rss/articles/CBMiQ0FVX3lxTE40Sllab3JkNVJ1MExhSXhudkswVjhGUFJLbGdWNnhtWW9sQjVEc1ctV2hUNHRrcXVUYmYyMG9qc2RXUGc?oc=5",
       "extracted_universities": [
         "동의대학교"
       ],
@@ -36564,6 +37000,42 @@
       "id": "96ddfeca7ae04092c41e9c1a",
       "title": "부산대, 개교 80주년 기념 ‘부산시민 동행 걷기대회’ 성료",
       "url": "https://news.google.com/rss/articles/CBMidEFVX3lxTE9zUkdtOF9rVFZGS3lZTmFrZVJFTlNIVXE5eTI2dWllOHhHdGxUbXRCSVZITkJTdGNWMUlJS1Y5bC1Wc3E4VzFuSTQ1R3VwREJDdENwU05lQmZidldMOWxPOC1ZQUJrREF6ZlJnS2xsdV9adWln?oc=5",
+      "extracted_universities": [
+        "부산대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "부산대학교",
+          "matched": true,
+          "candidate_regions": [
+            "부산"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "부산대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "부산"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "c5a538db4cc3b9423055f689",
+      "title": "부산대, 개교 80주년 기념 ‘부산시민 동행 걷기대회’ 성료",
+      "url": "https://news.google.com/rss/articles/CBMi2wFBVV95cUxQRmlJb1dJNTBENzBNZ2s3dGNDLTlsUUlUWmwybWRsVjZwMU1QT1JpSEpZTFl0bURxeGFRMjlaZVpFQm9IcEprX0o4S2d3aEVleHVOdlV5OVJsR1d4UjI1azhwN1JzQl9sNmtXNGF1dGRTc2FYR29BT0k4YTlsQTNHOGR0UjdKalY2MUdKNWtxLXJQSE5iZTZESGJES0hwMUxWdTl1cVJFUlRrc2paVTBXY0kzUDF4LUZxcHJ1Z0dWWTNLb3dFT05haTRmd0NZVjVzRU0zYURLeHJKRHc?oc=5",
       "extracted_universities": [
         "부산대학교"
       ],
@@ -59035,6 +59507,42 @@
       "additional_confirmation_names": [
         "대전충청지역대학"
       ],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "f394e30eb987f3f3489b1eb9",
+      "title": "한국과학기술연구원 천연물연구소, 강원대학교 KIST 강릉분원 학연협동과정학과 식품과학전공",
+      "url": "https://news.google.com/rss/articles/CBMikAFBVV95cUxQWFhLckQ3cGRqM3pVN0M1U1ZaUjJtQ3ZOWDExZlRUX2kwMWo1SkczaXJPWEctVG16NXotVEI3cEg1NGdWenN5TUViMVZkcE9MLWI4RmZrV1h2aFZJd1lMYWMxM19Nc2lIM25YeldnLTJKMkNRaDJ1eGtlTElIU1BSTTFVRkVxd3lfZ0RDaUl0UEU?oc=5",
+      "extracted_universities": [
+        "강원대학교"
+      ],
+      "directory_matches": [
+        {
+          "name": "강원대학교",
+          "matched": true,
+          "candidate_regions": [
+            "강원"
+          ],
+          "region_resolution": "unique_verified_location"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "강원대학교",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [],
+      "classified": true,
+      "result": [
+        "강원"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [],
       "background_universities": [],
       "conflicting_region_evidence": []
     },
@@ -86888,6 +87396,46 @@
       "id": "c7882f96d658f1fc56fa4f50",
       "title": "폴리텍IV대 대전 '글로벌 캡스톤디자인 경진대회' 대상",
       "url": "https://news.google.com/rss/articles/CBMieEFVX3lxTE55aXZTMERMemNaY2dya1lwbE51Y2Nwc1ptdVI1MGN1WkRxQ05TZE80enVRaDJfZXZaSHBnWGNObmxpLS0tR2xfVjJRd0toMG9jR1JBWWlxZDJZYjk5RDJacHZiVVFvRUwxaW9nWjV3aUJLSk1pWklhQdIBeEFVX3lxTE55aXZTMERMemNaY2dya1lwbE51Y2Nwc1ptdVI1MGN1WkRxQ05TZE80enVRaDJfZXZaSHBnWGNObmxpLS0tR2xfVjJRd0toMG9jR1JBWWlxZDJZYjk5RDJacHZiVVFvRUwxaW9nWjV3aUJLSk1pWklhQQ?oc=5",
+      "extracted_universities": [
+        "한국폴리텍대학"
+      ],
+      "directory_matches": [
+        {
+          "name": "한국폴리텍대학",
+          "matched": false,
+          "candidate_regions": [
+            "대전"
+          ],
+          "region_resolution": "campus_candidates"
+        }
+      ],
+      "campus_checks": [
+        {
+          "name": "한국폴리텍대학",
+          "campuses": [],
+          "status": "not_specified",
+          "confirmed": false
+        }
+      ],
+      "failure_reasons": [],
+      "review_reasons": [
+        "캠퍼스 특정 불가"
+      ],
+      "classified": true,
+      "result": [
+        "대전"
+      ],
+      "ambiguous_names": [],
+      "additional_confirmation_names": [
+        "한국폴리텍대학"
+      ],
+      "background_universities": [],
+      "conflicting_region_evidence": []
+    },
+    {
+      "id": "e7429f24c01eef55b8b8b285",
+      "title": "폴리텍IV대 대전 '글로벌 캡스톤디자인 경진대회' 대상",
+      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFBRVTVWN0tHXzF6SUJnTEY5NDBHcUlVTHY4UGdTSW1mNHlKRDV0dk5ydUtxYUhNTmU4bkVoem91QTFfUExDOXVzUHpYbHUtQ0Z5OVljTHlDUldoUHBGelowU9IBeEFVX3lxTE55aXZTMERMemNaY2dya1lwbE51Y2Nwc1ptdVI1MGN1WkRxQ05TZE80enVRaDJfZXZaSHBnWGNObmxpLS0tR2xfVjJRd0toMG9jR1JBWWlxZDJZYjk5RDJacHZiVVFvRUwxaW9nWjV3aUJLSk1pWklhQQ?oc=5",
       "extracted_universities": [
         "한국폴리텍대학"
       ],
@@ -183777,623 +184325,6 @@
       "classified": true,
       "result": [
         "충북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "cb7502edb96bbe5c038df1a6",
-      "title": "재능대, 제2차 제물포구 유관기관장 간담회 개최…지역 발전·기관 간 협력 논의",
-      "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBKZXE5WXQ1X0k3RGowbDgxRE5rVVdEZjRQV2s0MmZBYnJ2NmpqVmE2bzRNaEZXaVhwQmYxLXJfakstbnVaQVpmR0w2bTYzYzA0cGRqRm9KTjQydllseGtsMTY5eTVTZw?oc=5",
-      "extracted_universities": [
-        "재능대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "재능대학교",
-          "matched": true,
-          "candidate_regions": [
-            "인천"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "재능대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "인천"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "377fb4f21dbcb1464710990a",
-      "title": "국립창원대 남해캠퍼스 학생들, 지역민에 색상 진단",
-      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFB3X1NHN3hzSGZ3ZXpsdl85eGtSb3BuTmtxTE1sZEM4THdpd0FJNHZkRjloMDNiR1dma2lNNlNLQ2oxZnlFLU9pVVFZRm9xVS1NVzUyZmlpckFWa2J6Tmx5eA?oc=5",
-      "extracted_universities": [
-        "국립창원대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "국립창원대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경남"
-          ],
-          "region_resolution": "verified_campus"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "국립창원대학교",
-          "campuses": [
-            "남해캠퍼스"
-          ],
-          "status": "matched",
-          "confirmed": true
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경남"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "8bdef65674004bd9edb98ab5",
-      "title": "‘도민과 함께 경남대도약’…경남도, 2027년 첫 본예산 14조7천억 편성",
-      "url": "https://news.google.com/rss/articles/CBMiY0FVX3lxTE1tYlkyUUdxdXFJalNsdXp4WEFRTFA1X2I3SjNhZUVxbnRjNjlrc1JQWmRRcW5ZNUNWRUhxYVVuOEc1bWRITE5xLVBpYmdFemd1M21laDYzUEZEa2pEX3pSMWp6VQ?oc=5",
-      "extracted_universities": [
-        "경남대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경남대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경남"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경남대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경남"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "46e32f118886b4120783846c",
-      "title": "빅데이터·AI 시대 이끌 학술 사령탑…하일도 국립부경대 교수, 한국데이터정보과학회장 당선",
-      "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE1kNkk4SHVCSkVUT1gxWS1Kc09JTXF0anJfd21nYm5maU8tY1BYcGVkbXItQWR0bmdKcGFwc1pUTGRXeUxRS1FJb2FTaW8yU21Wd0Q2WWctTElSREVKNWhJVEtBeW0?oc=5",
-      "extracted_universities": [
-        "부경대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "부경대학교",
-          "matched": true,
-          "candidate_regions": [
-            "부산"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "부경대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "부산"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "2fc3a96b80a6b354048e5a55",
-      "title": "경상국립대, 경남 대학혁신 페스타서 총 8건 수상",
-      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFBMSzBVNVZYcVNEZjE4aFQ2Z2FxSnJqNW5ndlhDOW9tVVMyYm1ZQ0JFamhyaE5yOUw2WlVKak1EaDBWLVl5ak40d19ES3FxTndWSEJpdGIwZFZwX0Y2cUZSMw?oc=5",
-      "extracted_universities": [
-        "경상국립대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경상국립대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경남"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경상국립대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경남"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "0072d5bf1d0bc347d5067c35",
-      "title": "경운대, ‘한국-동남아 대학 리더십·학생 혁신 프로그램’ 개최",
-      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE0yaDA4ME0zdDR2eFVacEIxUDh4QVR2N3ByUHpQQ0tJdEg3bVd2bnk2TXhQNDZBYXlIa1phcTc2U25mMzNyTTh1XzlSX3BuWDF6VUwtTUd1ajdjZw?oc=5",
-      "extracted_universities": [
-        "경운대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경운대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경북"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경운대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "7cb85f06eb1e0b7e4a7cca3f",
-      "title": "강동대 앵커(RISE)사업단 지역 소상공인 경쟁력 강화를 위한 창업 멘토링 운영",
-      "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE5iaUg2empWeWdQd1ZDRnRtOHBIU2E1ZGZFSXVyYWZ1blgyREN6a3VXa1BjV2ZUa3ZyZmJNT3VFeHJmZUZ3SmpDZGJDbDlCcW15VlUxMkN0UTUyWnhreWU5WXdFOGlhUDIwQlNsYw?oc=5",
-      "extracted_universities": [
-        "강동대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "강동대학교",
-          "matched": true,
-          "candidate_regions": [
-            "충북"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "강동대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "충북"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "ef39e8a79581ea48ae3918ba",
-      "title": "서정대, 재학생 참여 전공 연계 체험·나눔 프로그램 운영…34개 부스서 약 2,000명 참여",
-      "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFBjUW5lU0E4Q2dWRjkxQlExekNYVnZvdlJFcm9HMGRkeUJ3Sk5FSDdRa2pfbkt4VXhfZEE0X0hreGl0T0NNX3NKXzN4VmJ4NTVTdmJiTEFPZ3dYMHRtaG5IelpPWDZPQQ?oc=5",
-      "extracted_universities": [
-        "서정대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "서정대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경기도"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "서정대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경기도"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "feeb1a110b683ec10af5b93c",
-      "title": "충남도립대, 제8회 달빛 체육대회 개최…학생·교원 70여 명 화합",
-      "url": "https://news.google.com/rss/articles/CBMiakFVX3lxTFBBNjIySlNuX0dfLW5BWTI2QU42SjhKQjllem1teFo3VEVqc21MMkVLdENXb0ZuM3U3dVctQlgydFVteUlXRUZDMldrVWtlTDhFUlRRV1pkcm0wUFMxa0Z2aEtCWk01eXVEc1E?oc=5",
-      "extracted_universities": [
-        "충남도립대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "충남도립대학교",
-          "matched": true,
-          "candidate_regions": [
-            "충남"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "충남도립대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "충남"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "25894c88901cecda75a253ac",
-      "title": "계명대, 온실가스 메탄·이산화탄소를 산업 원료로 바꾼다...차세대 촉매 기술 제시",
-      "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE1aVGhYZE1vUXY5Rmk3aF9mZE8tSjdiYnpvM3RmVDRqWjJQcTBSNXhRQmxkUTF0ZFdYbjlsdlVWSUdLcDRINWlnNTYzYms2aVRfbjNPV1lNQkFkZUR5N1NzUzVBUjZVazVFMnBB?oc=5",
-      "extracted_universities": [
-        "계명대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "계명대학교",
-          "matched": true,
-          "candidate_regions": [
-            "대구"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "계명대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "대구"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "27e188e3edae22eb34c17bed",
-      "title": "성균관대 연구진, 메신저 기반 디지털 성착취 범죄의 연결망 구조와 진화 과정 최초 규명",
-      "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTE9hSEJQSGpQLTRIaTJEZkMxQzY2WWRxV2lMV0R1Q0hhMHBEeThIcElLUHpoX0JLOFVxX0hTY0Z0R2lXckZxYkF5Y0J5SEcybEF3RFE4LU5qS0RPa0tYaW15cnBTVlBYSTVqYjFfdQ?oc=5",
-      "extracted_universities": [
-        "성균관대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "성균관대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경기도",
-            "서울"
-          ],
-          "region_resolution": "campus_candidates"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "성균관대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경기도",
-        "서울"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "72376cc34aa7d8920f27cf9f",
-      "title": "국립창원대-폴란드 부마르사, K2PL 인력 양성 협약",
-      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9MT252UHZRNDNnRVVlWnBURjAzNHFQRGF4U1FuVi1yc242c3phWVE5cm1ELW5BWlJuU3d3Z2htdGUyRWtDRkVRVXY5TG1LRlRsNGZiOU5sUWVkRTI0V1BFTg?oc=5",
-      "extracted_universities": [
-        "국립창원대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "국립창원대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경남"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "국립창원대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경남",
-        "해외"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "3b6b033d144169a7df371e59",
-      "title": "재능대 제2차 제물포구 유관기관장 간담회 개최… 지역 상생협력 강화",
-      "url": "https://news.google.com/rss/articles/CBMibEFVX3lxTFBrVnhLb2dPZldrT2ZGSks5czBYdFRZNjhLYWdXb3otaUh6NGN3cWNFRzFYZ1VzNTA3cGdlWWxuNklweS03cWJ5UU9fX3d4WmRYcVhTTEJhS3RWM2lsemxTRllhN1REVEZyS0ZhWQ?oc=5",
-      "extracted_universities": [
-        "재능대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "재능대학교",
-          "matched": true,
-          "candidate_regions": [
-            "인천"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "재능대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "인천"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "51c46204d325df6b4db88728",
-      "title": "경남정보대 국방산업학과, 풍산 부산사업장 현장 견학",
-      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFBVd1BpNkk2SjZsQkFsS0VZR3BiN01acTlLMnFmZWFzNmlIaXh6dGtLSnVzdlFaSXJsTXl5TXpXMGxqTjRPNkVmdHR0Z0wtWU5YbDdSLXBPbzdKQVVHSUJkbA?oc=5",
-      "extracted_universities": [
-        "경남정보대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경남정보대학교",
-          "matched": true,
-          "candidate_regions": [
-            "부산"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경남정보대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "부산"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "d3256c73cba6b5b46a9c7749",
-      "title": "목원대 앵커사업단 ‘2026 목원 PLAY 앵커’…체험과 즐거움으로 하나 되다",
-      "url": "https://news.google.com/rss/articles/CBMibkFVX3lxTE9ielg5ZDNmeHRNMTU3Wk92Um1odDBfTlN0UWNuenZWZ0NIb1pEWldwbU1BWi1iUlViTTg3cXh1SFI0U2hEVTR3QjRXSVlTbDgyOEY5d2E4QlQ3NnVxSzdNS1JSc1NwUnlFVnE4aDh3?oc=5",
-      "extracted_universities": [
-        "목원대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "목원대학교",
-          "matched": true,
-          "candidate_regions": [
-            "대전"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "목원대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "대전"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "5eb264cf3abf5740934a54ab",
-      "title": "청년 일자리부터 피지컬 AI까지…대구시·경북대 정책 논의",
-      "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE0tSk96UmQ1MllxOXlJaWFkSW9TLV85R0VJWW9BZjFTOElrM3A3ZXZtdnE1V2NKQ2hJY3JoeGpCNTd5dURYUjlmZzVfUDFGWWVwdk1iLVRaTDBJOHlZRmxmVHRfYzlqeG9HVFAzdFo0U3lBVkk?oc=5",
-      "extracted_universities": [
-        "경북대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경북대학교",
-          "matched": true,
-          "candidate_regions": [
-            "대구"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경북대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "대구"
-      ],
-      "ambiguous_names": [],
-      "additional_confirmation_names": [],
-      "background_universities": [],
-      "conflicting_region_evidence": []
-    },
-    {
-      "id": "0dbeb4956b7876f962e060a4",
-      "title": "경남대 앵커사업단, 제조AX·미래모빌리티 협력 논의",
-      "url": "https://news.google.com/rss/articles/CBMiYEFVX3lxTFBJWjVXd2tQUHRJNHg1ZnhfQUhVV1l3V25EMmZoLU15TDVITkp2VGhhUFNtSHBRSkZod3duWTJKZ0xjT1FlSVZHZ3dSQnZlRlM0Vy0xZkhtT01tMkJnY3g1VQ?oc=5",
-      "extracted_universities": [
-        "경남대학교"
-      ],
-      "directory_matches": [
-        {
-          "name": "경남대학교",
-          "matched": true,
-          "candidate_regions": [
-            "경남"
-          ],
-          "region_resolution": "unique_verified_location"
-        }
-      ],
-      "campus_checks": [
-        {
-          "name": "경남대학교",
-          "campuses": [],
-          "status": "not_specified",
-          "confirmed": false
-        }
-      ],
-      "failure_reasons": [],
-      "review_reasons": [],
-      "classified": true,
-      "result": [
-        "경남"
       ],
       "ambiguous_names": [],
       "additional_confirmation_names": [],
