@@ -110,11 +110,17 @@ function rndSort(items, order, today) {
         scale: rndScaleBucket(item.budget_won), deadline: rndDeadlineBucket(rndDday(item.close_date, today)) };
       for (const [key, value] of Object.entries(values)) if (value) counts[key + '|' + value] = (counts[key + '|' + value] || 0) + 1;
     }
+    // 카테고리마다 한 줄: 왼쪽에 카테고리 이름, 오른쪽에 선택 항목을 두고 위아래로 쌓습니다.
     $r('rndFilters').replaceChildren(...groups.map(([key, label]) => {
-      const box = document.createElement('fieldset');
-      box.className = 'rnd-group' + (key === 'ministry' ? ' rnd-group-wide' : '');
-      const legend = document.createElement('legend');
-      legend.textContent = label;
+      const box = document.createElement('div');
+      box.className = 'rnd-group';
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', label);
+      const title = document.createElement('span');
+      title.className = 'rnd-group-title';
+      title.textContent = label;
+      const list = document.createElement('div');
+      list.className = 'rnd-group-chips';
       const options = data.categories[key] || [];
       const chips = options.map(value => {
         const chip = document.createElement('button');
@@ -130,7 +136,8 @@ function rndSort(items, order, today) {
         };
         return chip;
       });
-      box.append(legend, ...chips);
+      list.append(...chips);
+      box.append(title, list);
       return box;
     }));
   }
