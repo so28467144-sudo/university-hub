@@ -264,8 +264,32 @@ function loadXlsxLibrary() {
   return xlsxLoader;
 }
 
-// 엑셀 다운로드 버튼
-$('exportExcel').onclick = async () => {
+// 엑셀 다운로드: 버튼을 누르면 파일 이름 창을 열고, 창에서 다운로드를 누르면 그 이름으로 저장합니다.
+$('exportExcel').onclick = () => {
+  if (exporting || !exportRows.length) {
+    return;
+  }
+  const input = $('exportFilename');
+  input.value = defaultExcelName(koreanDay(new Date()));
+  $('exportDialogSummary').textContent =
+    `현재 조건의 기사 ${exportRows.length.toLocaleString('ko-KR')}건을 지금 정렬 순서대로 저장합니다.`;
+  $('exportDialog').showModal();
+  input.focus();
+  input.select();
+};
+$('exportCancel').onclick = () => $('exportDialog').close();
+// 창 바깥(어두운 배경)을 누르면 닫습니다.
+$('exportDialog').onclick = event => {
+  if (event.target === $('exportDialog')) $('exportDialog').close();
+};
+$('exportForm').onsubmit = event => {
+  event.preventDefault();
+  const filename = excelFilename($('exportFilename').value, koreanDay(new Date()));
+  $('exportDialog').close();
+  return exportExcel(filename);
+};
+
+async function exportExcel(filename) {
   if (exporting || !exportRows.length) {
     return;
   }
@@ -364,11 +388,7 @@ $('exportExcel').onclick = async () => {
       '대학 기사'
     );
 
-    // 다운로드 실행: 입력한 파일 이름을 쓰고, 고치지 않았거나 비어 있으면 기본 이름(대학기사_오늘날짜)을 씁니다.
-    const nameInput = $('exportFilename');
-    const filename =
-      excelFilename(nameInput.dataset?.edited === 'true' ? nameInput.value : '', koreanDay(new Date()));
-
+    // 다운로드 실행
     XLSX.writeFile(workbook, filename);
 
     showExportNotice(
@@ -384,7 +404,7 @@ $('exportExcel').onclick = async () => {
     exporting = false;
     render();
   }
-};
+}
 
 // 엑셀 파일 이름: 파일 이름에 쓸 수 없는 문자는 '_'로 바꾸고, 끝의 .xlsx는 한 번만 붙입니다.
 function defaultExcelName(day) {
@@ -403,16 +423,6 @@ function excelFilename(value, day) {
   if (/^(?:con|prn|aux|nul|com\d|lpt\d)$/i.test(name)) name += '_';
   return `${name}.xlsx`;
 }
-// 파일 이름 칸은 기본 이름으로 채워 두고, 사용자가 고친 이름은 다시 덮어쓰지 않습니다.
-$('exportFilename').value = defaultExcelName(koreanDay(new Date()));
-$('exportFilename').oninput = event => { event.target.dataset.edited = event.target.value ? 'true' : ''; };
-$('exportFilename').onblur = event => {
-  if (!event.target.value.trim()) {
-    event.target.value = defaultExcelName(koreanDay(new Date()));
-    event.target.dataset.edited = '';
-  }
-};
-
 // GitHub Pages에서 news.json 파일을 읽어옵니다.
 async function loadNews() {
   try {
