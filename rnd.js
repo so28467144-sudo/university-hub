@@ -1,6 +1,7 @@
 'use strict';
 // R&D 공고 메뉴: NTIS 국가R&D통합공고를 NTIS와 같은 카테고리(공고현황·부처명·공고유형·공고형태·공고규모·마감일)로 보여 줍니다.
-// 공고 데이터는 rnd-announcements.json에서 읽습니다. NTIS 연계 승인 전에는 목록이 비어 있고 안내를 보여 줍니다.
+// 공고 데이터는 rnd-announcements.json에서 읽습니다. 이 파일은 rnd_collector.py가 NTIS RSS로 30분마다 채웁니다.
+// RSS에 없는 공고유형·공고형태는 데이터 파일에 카테고리가 있을 때만 필터로 보여 줍니다.
 
 // 한국 시간 기준 날짜(YYYY-MM-DD)
 function rndKoreanDay(value) {
@@ -13,6 +14,22 @@ function rndDday(closeDate, today) {
   const close = Date.parse(String(closeDate).slice(0, 10) + 'T00:00:00Z');
   const now = Date.parse(today + 'T00:00:00Z');
   return Number.isNaN(close) || Number.isNaN(now) ? null : Math.round((close - now) / 86400000);
+}
+// 공고현황: 접수 시작일·마감일과 오늘 날짜로 계산합니다(페이지를 오래 열어 두어도 맞도록). 날짜가 없으면 저장된 값을 씁니다.
+function rndStatus(item, today) {
+  const open = String(item.open_date || '').slice(0, 10);
+  const close = String(item.close_date || '').slice(0, 10);
+  if (!today || (!open && !close)) return item.status || '';
+  if (close && close < today) return '마감';
+  if (open && open > today) return '접수예정';
+  return '접수중';
+}
+// 공고금액 표시: 1억 이상은 억 단위, 그 미만은 만원 단위
+function rndBudgetLabel(won) {
+  if (won === null || won === undefined || won === '' || Number.isNaN(Number(won)) || Number(won) <= 0) return '';
+  const amount = Number(won);
+  if (amount >= 100000000) return `${Math.round(amount / 10000000) / 10}억원`;
+  return `${Math.round(amount / 10000).toLocaleString('ko-KR')}만원`;
 }
 function rndDdayLabel(dday) {
   if (dday === null) return '';
@@ -43,7 +60,7 @@ function rndFilter(items, filters, today) {
   const pick = (set, value) => !set || set.size === 0 || set.has(value);
   return items.filter(item => {
     const dday = rndDday(item.close_date, today);
-    if (!pick(filters.status, item.status)) return false;
+    if (!pick(filters.status, rndStatus(item, today))) return false;
     if (!pick(filters.ministry, item.ministry)) return false;
     if (!pick(filters.type, item.type)) return false;
     if (!pick(filters.form, item.form)) return false;
@@ -71,9 +88,11 @@ function rndSort(items, order, today) {
   if (typeof document === 'undefined' || !document.getElementById('rnd')) return;
   const $r = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const groups = [
+  const allGroups = [
     ['status', '공고현황'], ['ministry', '부처명'], ['type', '공고유형'], ['form', '공고형태'], ['scale', '공고규모'], ['deadline', '마감일'],
   ];
+  // 데이터 파일에 카테고리 목록이 있는 갈래만 필터로 보여 줍니다.
+  let groups = allGroups;
   const filters = { query: '', order: 'deadline', status: new Set(), ministry: new Set(), type: new Set(), form: new Set(), scale: new Set(), deadline: new Set() };
   let data = { categories: {}, items: [], status: 'loading' };
   let limit = 20;
@@ -106,7 +125,7 @@ function rndSort(items, order, today) {
     const counts = {};
     const today = rndKoreanDay(Date.now());
     for (const item of data.items) {
-      const values = { status: item.status, ministry: item.ministry, type: item.type, form: item.form,
+      const values = { status: rndStatus(item, today), ministry: item.ministry, type: item.type, form: item.form,
         scale: rndScaleBucket(item.budget_won), deadline: rndDeadlineBucket(rndDday(item.close_date, today)) };
       for (const [key, value] of Object.entries(values)) if (value) counts[key + '|' + value] = (counts[key + '|' + value] || 0) + 1;
     }
@@ -160,23 +179,24 @@ function rndSort(items, order, today) {
       const dday = rndDday(item.close_date, today);
       const card = document.createElement('article');
       card.className = 'rnd-card';
-      const statusClass = { 접수중: 'open', 접수예정: 'soon', 마감: 'closed' }[item.status] || 'closed';
+      const status = rndStatus(item, today);
+      const statusClass = { 접수중: 'open', 접수예정: 'soon', 마감: 'closed' }[status] || 'closed';
       const urgent = dday !== null && dday >= 0 && dday <= 7;
       const link = /^https:\/\//.test(item.url || '') ? item.url : '';
       card.innerHTML =
-        `<div class="rnd-card-top"><span class="rnd-status rnd-status-${statusClass}">${esc(item.status || '현황 미상')}</span>` +
+        `<div class="rnd-card-top"><span class="rnd-status rnd-status-${statusClass}">${esc(status || '현황 미상')}</span>` +
         `${item.type ? `<span class="rnd-tag">${esc(item.type)}</span>` : ''}${item.form ? `<span class="rnd-tag">${esc(item.form)}</span>` : ''}` +
         `${dday !== null ? `<span class="rnd-dday${urgent ? ' urgent' : ''}">${rndDdayLabel(dday)}</span>` : ''}</div>` +
         `<h3>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener noreferrer">${esc(item.title)}</a>` : esc(item.title)}</h3>` +
         `<p class="rnd-meta"><strong>${esc(item.ministry || '부처 미상')}</strong>${item.agency ? `<span>${esc(item.agency)}</span>` : ''}` +
         `${item.open_date ? `<span>접수 ${esc(String(item.open_date).slice(0, 10))}</span>` : ''}` +
         `${item.close_date ? `<span>마감 ${esc(String(item.close_date).slice(0, 10))}</span>` : ''}` +
-        `${rndScaleBucket(item.budget_won) ? `<span>${esc(rndScaleBucket(item.budget_won))}</span>` : ''}</p>`;
+        `${rndBudgetLabel(item.budget_won) ? `<span>${esc(rndBudgetLabel(item.budget_won))}</span>` : ''}</p>`;
       return card;
     }));
     $r('rndEmpty').hidden = rows.length > 0;
     $r('rndEmptyTitle').textContent = data.items.length ? '조건에 맞는 공고가 없어요' : (data.status === 'loading' ? '공고를 불러오는 중이에요' : '아직 표시할 공고가 없어요');
-    $r('rndEmptyText').textContent = data.items.length ? '다른 부처나 공고현황을 선택해 보세요.' : 'NTIS 연계가 승인되면 이곳에 국가R&D 공고가 표시됩니다.';
+    $r('rndEmptyText').textContent = data.items.length ? '다른 부처나 공고현황을 선택해 보세요.' : 'NTIS RSS에서 공고를 받아오면 이곳에 표시됩니다.';
     $r('rndMore').hidden = rows.length <= limit;
   }
 
@@ -193,7 +213,10 @@ function rndSort(items, order, today) {
 
   fetch('./rnd-announcements.json', { cache: 'no-store' })
     .then(response => { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); })
-    .then(json => { data = { ...json, items: Array.isArray(json.items) ? json.items : [], categories: json.categories || {} }; })
+    .then(json => {
+      data = { ...json, items: Array.isArray(json.items) ? json.items : [], categories: json.categories || {} };
+      groups = allGroups.filter(([key]) => Array.isArray(data.categories[key]) && data.categories[key].length);
+    })
     .catch(() => { data = { ...data, status: 'error' }; })
     .finally(() => { if (document.body.dataset.view === 'rnd') render(); else renderFilters(); });
 })();

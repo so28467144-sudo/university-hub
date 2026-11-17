@@ -29,6 +29,16 @@ Python 3.9 이상. API 키와 추가 패키지는 필요하지 않습니다.
 - 지역은 rss_collector.py의 대학명 목록으로 추정합니다. 복수 캠퍼스는 복수 지역에 분류합니다. 미분류는 전체 지역 및 지역 미분류 선택 시 표시합니다. 전국 모든 대학을 포함하지는 않습니다.
 - 소식 유형도 키워드 분류라 오분류가 있을 수 있습니다.
 
+## R&D 공고 (NTIS RSS)
+
+- NTIS는 별도 API 없이 RSS 구독을 안내합니다(KISTEP NTIS팀 안내 자료). 주소: `https://www.ntis.go.kr/rndgate/unRndRss.xml?prt=100` (최근 신규 공고 최대 100건).
+- `rnd_collector.py`가 공고명·링크·부처·공고기관·공고일·접수 시작일·마감일·공고금액을 받아 `rnd-announcements.json`에 저장합니다. 같은 링크(roRndUid)의 공고는 한 번만 저장하고 최신 내용으로 갱신하며, RSS에서 빠진 지난 공고도 계속 보관합니다(최대 5,000건). 보관 범위는 `MIN_POSTED_DATE`(현재 2026-10-01) 이후 공고와, 그 이전 공고 중 아직 마감되지 않은 것입니다. 이전 공고는 마감되면 다음 수집 때 빠집니다.
+- GitHub Actions가 30분마다 뉴스 수집 전에 실행합니다. NTIS 수집이 실패해도 뉴스 갱신은 계속되고 기존 공고 파일은 유지됩니다.
+- 로컬 서버(`python abc.py`)도 시작 시와 30분마다 수집하지만, 결과는 git에서 제외되는 `.rnd-cache.json`에 저장합니다.
+- 공고현황(접수예정·접수중·마감)은 브라우저가 오늘 날짜와 접수일정으로 계산합니다. RSS에 없는 공고유형·공고형태 필터는 표시하지 않습니다.
+- RSS는 최근 100건만 주며 `prt`를 늘리거나 `Fi` 페이징으로 101번째 이후를 요청하면 0건이 옵니다(2026-11 확인). 대신 공고일 조회(`dt=YYYYMMDD`)는 과거(2024년 이전 포함)도 됩니다. 과거 공고 채우기: `python rnd_collector.py --backfill 2026-01-01` (하루씩 조회, 0.5초 간격, 실패한 날짜는 끝에 표시).
+- 직접 수집: `python rnd_collector.py` / 테스트: `python -m unittest test_rnd_collector`, `node test_rnd.cjs`.
+
 ## 소스 추가
 
 rss_sources.json에 name, url, enabled 항목을 추가하세요. 다음 수집부터 반영됩니다. 즉시 적용하려면 서버를 재시작하세요.

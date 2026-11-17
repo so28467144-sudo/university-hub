@@ -9,9 +9,12 @@ from urllib.parse import urlsplit
 import webbrowser
 from rss_collector import Collector, MAX_ARTICLES
 from excel_export import make_workbook
+import rnd_collector
 
 ROOT = Path(__file__).resolve().parent
-ASSETS = {'/app.js': ('app.js', 'text/javascript'), '/style.css': ('style.css', 'text/css')}
+ASSETS = {'/app.js': ('app.js', 'text/javascript'), '/style.css': ('style.css', 'text/css'), '/rnd.js': ('rnd.js', 'text/javascript')}
+# 로컬 서버의 R&D 공고 수집 결과는 저장소 파일 대신 이 캐시에 저장합니다(GitHub 자동 갱신과 충돌 방지).
+RND_CACHE = ROOT / '.rnd-cache.json'
 collector = Collector()
 
 
@@ -60,6 +63,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == '/news.json':
             news, status = collector.snapshot()
             self.respond(json.dumps(dict(news=news, status=status), ensure_ascii=False).encode('utf-8'), 'application/json')
+        elif path == '/rnd-announcements.json':
+            source = RND_CACHE if RND_CACHE.exists() else ROOT / 'rnd-announcements.json'
+            self.respond(source.read_bytes(), 'application/json')
         elif path in ASSETS:
             filename, content_type = ASSETS[path]
             self.respond((ROOT / filename).read_bytes(), content_type)
@@ -78,6 +84,21 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+def start_rnd_collector(stop):
+    """NTIS R&D 공고 RSS를 시작 시 1회, 이후 30분마다 수집합니다. 실패하면 기존 자료를 유지합니다."""
+    def worker():
+        while not stop.is_set():
+            try:
+                if not RND_CACHE.exists() and (ROOT / 'rnd-announcements.json').exists():
+                    RND_CACHE.write_bytes((ROOT / 'rnd-announcements.json').read_bytes())
+                total, added = rnd_collector.update(RND_CACHE)
+                print(f'NTIS R&D 공고 갱신: 전체 {total}건, 새 공고 {added}건', flush=True)
+            except Exception as error:
+                print(f'NTIS R&D 공고 수집 실패(기존 자료 유지): {error}', flush=True)
+            stop.wait(30 * 60)
+    threading.Thread(target=worker, daemon=True, name='rnd-collector').start()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Campus On local Python website')
     parser.add_argument('--port', type=int, default=8000)
@@ -91,6 +112,7 @@ def main():
     print(f'Campus On: {url}\nPress Ctrl+C to stop.', flush=True)
     stop = threading.Event()
     collector.start(stop)
+    start_rnd_collector(stop)
     if args.open:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()
     try:
